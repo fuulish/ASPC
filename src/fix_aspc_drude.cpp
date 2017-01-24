@@ -70,14 +70,30 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   what = COORDS;
   dim = 3;
 
-  // FUDO| need additional check whether lj/cut/coul/<cut/long>/sa is active, if not abort...
-  // make sure dim is always the right number here!
-
   zerovels = 1;
   neval = 1;
   scf = 0;
   ftol = 1.e-02;
   printconv = 0;
+
+  int iarg = 6;
+  while (iarg < narg) {
+    if (strcmp(arg[iarg],"scf") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      scf = 1;
+      ftol = force->numeric(FLERR, arg[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"neval") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      neval = force->inumeric(FLERR,arg[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"printconv") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      if (strcmp(arg[iarg+1], "yes") == 0) printconv = 1;
+      else if (strcmp(arg[iarg+1], "no") == 0) printconv = 0;
+      iarg += 2;
+    } else error->all(FLERR,"Illegal fix_modify command");
+  }
 
   int natom = atom->natoms;
   memory->create(dx, (natom+1)*dim, "aspc_drude:dx");
