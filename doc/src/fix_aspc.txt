@@ -12,54 +12,89 @@ fix aspc/drude command :h3
 
 [Syntax:]
 
-fix ID group-ID aspc/style args flag1 flag2 ... flagN :pre
+fix ID group-ID aspc/style args :pre
 
 ID, group-ID are documented in "fix"_fix.html command :ulb,l
-style = {aspc/drude} :l
-    {aspc/drude} args = N DAMP FCON
-        N = chain length of predictor
-        DAMP = damping factor for predictor, value smaller than zero chooses default
-        FCON = harmonic force constant for Drude particles
+style = {drude} :l
+  {drude} args = K DAMP FCON
+    K = chain length of predictor
+    OMEGA = damping factor for predictor, value smaller than zero chooses default
+    FCON = harmonic force constant for Drude particles :pre
 
 zero or more keyword/value pairs may be appended :l
 keyword = {scf} or {neval}
-    {scf} value = {yes} or {no}
+    {scf} value = EPS
+        EPS = required accuracy on the self-consistent field
     {neval} value = N
-        N = # of corrector evaluations
+        N = # of corrector evaluations :pre
+
+:ule
 
 [Examples:]
 
-fix 1 DRUDES aspc/drude -1. 1000
+fix 1 DRUDES aspc/drude 2 -1. 1000
 
 [Description:]
 
-Integrate the equations of motion of polarizable particles, described by Drude
-oscillators.  The algorithm first estimates the induced dipoles using a
-predictor of variable chain length. This estimate is then corrected by
-application of the self-consistent field equation (usually once) on top of the
-newly predicted induced dipoles.
+The explicit inclusion of polarizbality into a system requires the solution of self-consistent field (SCF) equations to obtain the correct, induced polarization.
+For induced dipoles this can be expressed as
+
+\begin\{equation\}
+ \mu = \alpha E.
+\end\{equation\}
+
+Here, :math:`\mu` are the induced dipole moments, and :math:`E` is the local field at the polarizable point with polarizability :math:`\alpha` .
+More general, the dipole moments are obtained by a self-consistent equation:
+
+\begin\{equation\}
+ \mu = M(\mu, r_1, r_2, ..., r_N)
+\end\{equation\}
+
+Solving these equation explicitly at each time step is very costly, and several methods exist to approximate the SCF solution.
+The {aspc} family of fixes integrates the equations of motion of the induced dipoles.
+The algorithm first estimates the induced dipoles using a predictor of variable chain length.
+This estimate is then corrected by application of the self-consistent field equation (usually once) on top of the newly predicted induced dipoles.
 
 The predictor is a linear extrapolation:
 
-\begin{equation}
- \mu^p(t+h) = 2 \mu(t) - \my(t-h) + \sum_{j=1}^{k} A_j \{ \mu(t-[j+1]h) - 2\mu(t-jh) + \mu(t - [j-1]h) \}.
-\end{equation}
+\begin\{equation\}
+ \mu^p(t+h) = 2 \mu(t) - \mu(t-h) + \sum_\{j=1\}^\{k\} A_j \{ \mu(t-\[j+1\]h) - 2\mu(t-jh) + \mu(t - \[j-1\]h) \}.
+\end\{equation\}
 
-The coefficients $A_j$ have been determined to ensure time-reversibility by
-cancelling those terms that cause irreversibilty in the integration of the
-equations of motion.
+The coefficients A\ :sub:`j`\ have been determined to ensure time-reversibility by
+cancelling as many terms as possible that cause irreversibilty in the
+integration of the equations of motion.
 
 The actual implementation uses the simplified form of the predictor:
 
-\begin{equation}
- \mu^{p}(t+h) = \sum_{j=0}^{k-1} B_{j+1} \mu (t-jh)
-\end{equation}
+\begin\{equation\}
+ \mu^\{p\}(t+h) = \sum_\{j=0\}^\{k-1\} B_\{j+1\} \mu (t-jh)
+\end\{equation\}
 
 where
 
-\begin{equation}
- B_j = A_j - 2 A_{j-1} + A_{j-2}.
-\end{equation}
+\begin\{equation\}
+ B_j = A_j - 2 A_\{j-1\} + A_\{j-2\}.
+\end\{equation\}
+
+The predictor collects a history of appropriate length.
+It uses a shorter chain during the initial integration, when not all terms are
+available.
+
+The induced dipoles at the next integration step are then:
+
+\begin\{equation\}
+ \mu(t+h) = \omega M (\mu^\{p\}(t+h)) + (1-\omega) \mu^\{p\}(t+h)
+\end\{equation\}
+
+where :math:`M` is one iteration in the self-consisten field cycle.
+
+For the {drude} style the fix first checks if the group only contains Drude
+particles.
+The calculation will stop if either cores of non-polarizable particles are
+included in group for the {aspc/drude} fix.
+The chain length of the predictor has to be specified and the damping :math:`\omega` .
+Furthermore, explicit specification of the force constant of the Drude polarizability bonds is also required.
 
 NOTE: The "fix drude command"_fix_drude.html is required.
 
@@ -67,8 +102,8 @@ NOTE: The Drude particles must not have a vdW potential acting on them, i.e.,
 coefficients in, e.g., "lj/cut/coul/long"_pair_lj.html should be set to zero.
 
 NOTE: For aspc/drude the force constants of all Drude particles needs to be the
-same and has to be specified explicitly, in the form $U = 0.5 * k * (x -
-x_0)^2$, where $k$ is the force constant.
+same and has to be specified explicitly, in the form :math:`U = 0.5 k (x - x_0)^2` ,
+where :math:`k` is the force constant.
 
 :line
 
@@ -78,7 +113,9 @@ No information about this fix is written to "binary restart files"_restart.html.
 
 [Restrictions:]
 
-This fix should be invoked after any time integration fix.
+This fix should be invoked after the time integration fix for the particles that
+carry the polarizability.
+In case of Drude polarizability, these would be the "cores".
 
 [Related commands:]
 
