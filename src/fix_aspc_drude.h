@@ -60,7 +60,7 @@ class FixASPCDrude : public FixASPC {
   double energy_force_es(int);
   FixDrude * fix_drude;
   tagint *drudeid;
-  double etol, ftol;
+  double ftol;
   int scf, neval, printconv;
   double *dx, *hrm;
 

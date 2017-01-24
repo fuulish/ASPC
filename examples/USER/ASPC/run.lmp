@@ -48,6 +48,7 @@ neigh_modify one 100000 page 1000000
 timestep 1.0
 
 velocity ATOMS create ${TK} 12345
+velocity ATOMS zero angular
 
 comm_modify vel yes
 compute TATOM ATOMS temp
@@ -57,8 +58,6 @@ delete_bonds ATOMS multi
 fix TVSTAT ATOMS rigid/nvt/small molecule temp ${TS} ${TK} 100
 
 fix ASPC DRUDES aspc/drude 2 ${DAMP} 1000
-
-fix MOM ATOMS momentum 10 angular
 
 dump TRAJ all custom ${ndump} dump.${DAMP}.lammpstrj id mol type element xu yu zu fx fy fz vx vy vz
 dump_modify TRAJ element O H L D

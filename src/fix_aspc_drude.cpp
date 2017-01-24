@@ -50,7 +50,7 @@ using namespace FixConst;
 
 #define EPS_ENERGY 1.0e-8
 
-enum{MAXITER,MAXEVAL,ETOL,FTOL};
+enum{MAXITER,MAXEVAL,FTOL};
 
 /* ---------------------------------------------------------------------- */
 
@@ -77,7 +77,6 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   neval = 1;
   scf = 0;
   ftol = 1.e-02;
-  etol = 1.e-04;
   printconv = 0;
 
   int natom = atom->natoms;
@@ -220,8 +219,7 @@ void FixASPCDrude::correct()
 
           if ( conv ) {
             if ( ( printconv ) && ( comm->me == 0) ) {
-              if (conv == ETOL) printf("Energy ");
-              else if (conv == FTOL) printf("Forces ");
+              if (conv == FTOL) printf("Forces ");
 
               printf("converged in %i iterations\n", n+1);
             }
@@ -421,10 +419,6 @@ int FixASPCDrude::check_convergence(double ecurrent, double eprevious, double **
   if ( !(allnoconv) )
     return FTOL;
 
-  if (fabs(ecurrent-eprevious) <
-      etol * 0.5*(fabs(ecurrent) + fabs(eprevious) + EPS_ENERGY))
-    return ETOL;
-
   return 0;
 
 }
@@ -582,10 +576,6 @@ int FixASPCDrude::modify_param(int narg, char **arg)
     } else if (strcmp(arg[iarg],"ftol") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       ftol = force->numeric(FLERR,arg[iarg+1]);
-      iarg += 2;
-    } else if (strcmp(arg[iarg],"etol") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
-      etol = force->numeric(FLERR,arg[iarg+1]);
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
