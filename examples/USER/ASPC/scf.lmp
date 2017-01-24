@@ -57,7 +57,7 @@ compute TEMP all temp/drude
 delete_bonds ATOMS multi
 fix TVSTAT ATOMS rigid/nvt/small molecule temp ${TS} ${TK} 100
 
-fix ASPC DRUDES aspc/drude 2 1.0 1000 scf 1.e-3 neval 10 printconv no
+fix ASPC DRUDES aspc/drude 2 1.0 1000 scf 1.e-3 neval 10
 
 dump TRAJ all custom ${ndump} dump.scf.lammpstrj id mol type element xu yu zu fx fy fz vx vy vz
 dump_modify TRAJ element O H L D

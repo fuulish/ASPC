@@ -87,11 +87,6 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       neval = force->inumeric(FLERR,arg[iarg+1]);
       iarg += 2;
-    } else if (strcmp(arg[iarg],"printconv") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
-      if (strcmp(arg[iarg+1], "yes") == 0) printconv = 1;
-      else if (strcmp(arg[iarg+1], "no") == 0) printconv = 0;
-      iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
 
