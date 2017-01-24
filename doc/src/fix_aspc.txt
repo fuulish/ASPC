@@ -32,7 +32,7 @@ keyword = {scf} or {neval}
 
 [Examples:]
 
-fix 1 DRUDES aspc/drude 2 -1. 1000
+fix 1 DRUDES aspc/drude 2 -1. 1000 :pre
 
 [Description:]
 
@@ -51,7 +51,7 @@ More general, the dipole moments are obtained by a self-consistent equation:
 \end\{equation\}
 
 Solving these equation explicitly at each time step is very costly, and several methods exist to approximate the SCF solution.
-The {aspc} family of fixes integrates the equations of motion of the induced dipoles.
+The {aspc} family of fixes integrates the equations of motion of the induced dipoles as described in "Kolafa"_#Kolafa.
 The algorithm first estimates the induced dipoles using a predictor of variable chain length.
 This estimate is then corrected by application of the self-consistent field equation (usually once) on top of the newly predicted induced dipoles.
 
@@ -126,3 +126,8 @@ temp/drude"_compute_temp_drude.html, "pair_style
 thole"_pair_thole.html
 
 [Default:] None
+
+:line
+
+:link(Kolafa)
+[(Kolafa)] Kolafa J Comp Chem 25, 335 (2003).
