@@ -16,7 +16,8 @@ fix ID group-ID aspc/style args flag1 flag2 ... flagN :pre
 
 ID, group-ID are documented in "fix"_fix.html command :ulb,l
 style = {aspc/drude} :l
-    {aspc/drude} args = DAMP FCON
+    {aspc/drude} args = N DAMP FCON
+        N = chain length of predictor
         DAMP = damping factor for predictor, value smaller than zero chooses default
         FCON = harmonic force constant for Drude particles
 
@@ -33,12 +34,41 @@ fix 1 DRUDES aspc/drude -1. 1000
 [Description:]
 
 Integrate the equations of motion of polarizable particles, described by Drude
-oscillators.
+oscillators.  The algorithm first estimates the induced dipoles using a
+predictor of variable chain length. This estimate is then corrected by
+application of the self-consistent field equation (usually once) on top of the
+newly predicted induced dipoles.
+
+The predictor is a linear extrapolation:
+
+\begin{equation}
+ \mu^p(t+h) = 2 \mu(t) - \my(t-h) + \sum_{j=1}^{k} A_j \{ \mu(t-[j+1]h) - 2\mu(t-jh) + \mu(t - [j-1]h) \}.
+\end{equation}
+
+The coefficients $A_j$ have been determined to ensure time-reversibility by
+cancelling those terms that cause irreversibilty in the integration of the
+equations of motion.
+
+The actual implementation uses the simplified form of the predictor:
+
+\begin{equation}
+ \mu^{p}(t+h) = \sum_{j=0}^{k-1} B_{j+1} \mu (t-jh)
+\end{equation}
+
+where
+
+\begin{equation}
+ B_j = A_j - 2 A_{j-1} + A_{j-2}.
+\end{equation}
 
 NOTE: The "fix drude command"_fix_drude.html is required.
 
 NOTE: The Drude particles must not have a vdW potential acting on them, i.e.,
 coefficients in, e.g., "lj/cut/coul/long"_pair_lj.html should be set to zero.
+
+NOTE: For aspc/drude the force constants of all Drude particles needs to be the
+same and has to be specified explicitly, in the form $U = 0.5 * k * (x -
+x_0)^2$, where $k$ is the force constant.
 
 :line
 
