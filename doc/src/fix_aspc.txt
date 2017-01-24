@@ -1,0 +1,61 @@
+
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+fix aspc command :h3
+fix aspc/drude command :h3
+
+[Syntax:]
+
+fix ID group-ID aspc/style args flag1 flag2 ... flagN :pre
+
+ID, group-ID are documented in "fix"_fix.html command :ulb,l
+style = {aspc/drude} :l
+    {aspc/drude} args = DAMP FCON
+        DAMP = damping factor for predictor, value smaller than zero chooses default
+        FCON = harmonic force constant for Drude particles
+
+zero or more keyword/value pairs may be appended :l
+keyword = {scf} or {neval}
+    {scf} value = {yes} or {no}
+    {neval} value = N
+        N = # of corrector evaluations
+
+[Examples:]
+
+fix 1 DRUDES aspc/drude -1. 1000
+
+[Description:]
+
+Integrate the equations of motion of polarizable particles, described by Drude
+oscillators.
+
+NOTE: The "fix drude command"_fix_drude.html is required.
+
+NOTE: The Drude particles must not have a vdW potential acting on them, i.e.,
+coefficients in, e.g., "lj/cut/coul/long"_pair_lj.html should be set to zero.
+
+:line
+
+[Restart, fix_modify, output, run start/stop, minimize info:]
+
+No information about this fix is written to "binary restart files"_restart.html.
+
+[Restrictions:]
+
+This fix should be invoked after any time integration fix.
+
+[Related commands:]
+
+"fix drude"_fix_drude.html
+"fix langevin/drude"_fix_langevin_drude.html, "fix
+drude/transform"_fix_drude_transform.html, "compute
+temp/drude"_compute_temp_drude.html, "pair_style
+thole"_pair_thole.html
+
+[Default:] None
