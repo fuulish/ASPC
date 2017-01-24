@@ -1,0 +1,5 @@
+This package implements the always-stable predictor-corrector algorithm for
+polarizable particles into LAMMPS.
+
+Currently, the algorithm is available in conjunction with the
+Drude-polarizability model.
