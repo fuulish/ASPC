@@ -272,7 +272,14 @@ void FixASPC::initial_integrate(int vflag)
 
 void FixASPC::setup_pre_force(int vflag)
 {
+    reset_vectors();
+
     //FU| there's nothing in the history yet, and nothing to predict from, hence only to the correction
+    //FU| eflag and vflag are not necessarily the same as in min/verlet setup, OK?
+    modify->setup_pre_reverse(eflag, vflag);
+    if (force->kspace)
+      force->kspace->setup();
+
     pre_force(vflag);
     comm->forward_comm();
 

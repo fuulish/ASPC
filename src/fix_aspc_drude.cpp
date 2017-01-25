@@ -122,18 +122,10 @@ void FixASPCDrude::init()
 
 void FixASPCDrude::setup_pre_force(int vflag)
 {
-    reset_vectors();
+    //FU| this needs to be included, and somewhere else than in class construction, or init()
     drudeid = fix_drude->drudeid;
 
-    modify->setup_pre_reverse(eflag, vflag);
-    if (force->kspace)
-      force->kspace->setup();
-
-    pre_force(vflag);
-    comm->forward_comm();
-
-    update_history();
-
+    FixASPC::setup_pre_force(vflag);
 }
 
 void FixASPCDrude::correct()
