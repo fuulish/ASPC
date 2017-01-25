@@ -38,7 +38,7 @@ fix 1 DRUDES aspc/drude 2 -1. 1000 :pre
 
 These fixes handle treatment of explicit polarizability using the time-reversible always-stable predictor-corrector algorithm ("Kolafa"_#Kolafa).
 In general, the explicit inclusion of polarizbality into a system requires the solution of self-consistent field (SCF) equations to obtain the correct, induced polarization.
-For induced dipoles this can be expressed as
+For inducible dipoles this can be expressed as
 
 \begin\{equation\}
  \mu_i = \alpha_i E_\{loc\}.
@@ -53,11 +53,11 @@ In a more abstract form, the dipole moments are obtained by a self-consistent eq
 
 Here, :math:`\mu` is the set of induced dipoles :math:`\mu`:sub:`1`, :math:`\mu`:sub:`2`, ..., :math:`\mu`:sub:`N` and :math:`M` is a prescription for obtaining a new set of induced dipoles from the previous ones, and :math:`r`:sub:`1`, :math:`r`:sub:`2`, ..., :math:`r`:sub:`N` are the positions of the polarizable sites.
 
-Solving these equation explicitly at each time step is very costly, due to the repeated evaluation of the electric field. 
+Solving these equation explicitly at each time step is very costly, due to their repeated evaluation.
 Several methods exist to approximate the SCF solution.
 The {aspc} family of fixes integrates the equations of motion of the inducible dipoles as described in "Kolafa"_#Kolafa.
 The algorithm first estimates the induced dipoles using a predictor of variable chain length.
-This estimate is then corrected by application of the self-consistent field equation (usually once) on top of the newly predicted induced dipoles.
+This estimate is then corrected by application of the self-consistent field equation :math:`M` (usually once) on top of the newly predicted induced dipoles.
 
 The predictor is a linear extrapolation:
 
