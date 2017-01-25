@@ -62,15 +62,10 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   printf("%i number of arguments\n", narg);
 
   kd = force->numeric(FLERR,arg[5]);
-  printf("HARMONIC FORCE CONSTANT IS: %14.8f\n", kd);
-  // FUDO| check which way we wanna handle things here, either LAMMPS-equivalent of force constant, or 1./2. * k
-  // FUDO| possible conversion factors?!
-  // kd *= 2.;
 
   what = COORDS;
   dim = 3;
 
-  zerovels = 1;
   neval = 1;
   scf = 0;
   ftol = 1.e-02;
@@ -94,7 +89,6 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   memory->create(dx, (natom+1)*dim, "aspc_drude:dx");
   memory->create(hrm, (natom+1)*dim, "aspc_drude:hrm");
 
-  // comm_forward = 9;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -115,14 +109,13 @@ void FixASPCDrude::init()
   if (ifix == modify->nfix) error->all(FLERR, "ASPCDrude for DRUDE requires fix drude");
   fix_drude = (FixDrude *) modify->fix[ifix];
 
-  //FUDO| perform additional check whether only drude types have been included
+  //FU| perform additional check whether only drude types have been included
 
   int nlocal = atom->nlocal;
   int *mask = atom->mask;
   int *type = atom->type;
   int *drudetype = fix_drude->drudetype;
 
-  // FUDO| alternatively loop only over drude atoms in predict() and correct(), opinions?
   for ( int i=0; i<nlocal; i++ )
     if ( mask[i] & groupbit && (drudetype[type[i]] != DRUDE_TYPE) )
       error->all(FLERR, "Your fix ASPC group contains non-Drude particles");
@@ -135,6 +128,9 @@ void FixASPCDrude::setup_pre_force(int vflag)
     reset_vectors();
     drudeid = fix_drude->drudeid;
 
+    //FUDO| if included segfaults, but exclusion doesn't matter much, because
+    //FUDO| position of drude particles should be minimized in the first step
+    //FUDO| anyhow - even if not, no real problem...
     // pre_force(vflag);
     // comm->forward_comm();
 
@@ -154,33 +150,21 @@ void FixASPCDrude::correct()
     double eprevious, ecurrent;
 
     double **f = atom->f;
-    double *q = atom->q;
     double onemdamp = 1. - damp;
 
-    // double **x = atom->x;
-    // for ( int l=0; l<nlocal; l++ )
-    //   if ( mask[l] & groupbit )
-    //     printf("%14.8f %14.8f %14.8f\n", x[l][0], x[l][1], x[l][2]);
-    //     // printf("%14.8f %14.8f %14.8f\n", f[l][0], f[l][1], f[l][2]);
-
     eprevious = energy_force_es(1);
-    // eprevious += calc_spring_forces_energy();
-
-    // FUDO| maybe remove re-neighboring from energy_force_es
-    // printf("BEFORE ENERGY\n");
-    // printf("AFTER ENERGY\n");
 
     baseind = 0;
 
     r2r_indices_forward();
 
+    //FU| save the predicted positions
     for ( i=0; i<nlocal; i++ ) {
       if ( mask[i] & groupbit ) {
 
         coreind = (int) drudeid[i];
         coreind *= dim;
 
-        // FUDO| save the predicted positions
         for ( k=0; k<dim; k++)
             dx[baseind+k] = qty[baseind+k] - qty[coreind+k];
 
@@ -193,6 +177,7 @@ void FixASPCDrude::correct()
     int conv = 0;
     int nmaxener = neval - 1;
 
+    //FU| apply corrector neval times
     for ( n=0; n<neval; n++ ) {
         baseind = 0;
 
@@ -213,21 +198,22 @@ void FixASPCDrude::correct()
           baseind += dim;
         }
 
+        //FU| additional communication if multiple corrector applications, otherwise one in pre_force, after correct()
         if ( (scf) || ( neval > 1) )
           comm->forward_comm();
 
         if ( scf ) {
-          //FUDO| also calculate energy contribution of harmonic springs?
           r2r_indices_reverse();
           ecurrent = energy_force_es(1);
           r2r_indices_forward();
 
+          //FU| we don't need the energy, convergence only checked on forces
           calc_spring_forces_energy();
-          // ecurrent += calc_spring_forces_energy();
 
           conv = check_convergence(ecurrent, eprevious, f);
           eprevious = ecurrent;
 
+          //FU| possibly add other convergence criteria
           if ( conv ) {
             if ( ( printconv ) && ( comm->me == 0) ) {
               if (conv == FTOL) printf("Forces ");
@@ -251,20 +237,17 @@ void FixASPCDrude::correct()
 
     baseind = 0;
 
+    //FU| perform the actual ASPC step, between predictor and corrector
     for ( i=0; i<nlocal; i++ ) {
       if ( mask[i] & groupbit ) {
 
         coreind = (int) drudeid[i];
         coreind *= dim;
 
-        //FUDO| here we again need to make sure that we're using the difference between core and dp
-
         for ( k=0; k<dim; k++) {
             df = qty[baseind+k] - qty[coreind+k];
             qty[baseind+k] = qty[coreind+k] + damp * df + onemdamp * dx[baseind+k];
         }
-        // double **x = atom->x;
-        // printf("%5i %14.8f %14.8f %14.8f %14.8f %14.8f %14.8f\n", i, f[i][0], f[i][1], f[i][2], x[i][0], x[i][1], x[i][2]);
       }
       baseind += dim;
     }
@@ -294,56 +277,23 @@ void FixASPCDrude::r2r_indices_reverse()
         drudeid[i] = atom->tag[(int) drudeid[i]];
 }
 
+//FU| additional prediction routine, because we need the position difference and not the absolute position
+//FUDO| this could be shortened by calling  ASPC::predict() and then adding the corresponding values to the core positions
 void FixASPCDrude::predict()
 {
 
-    int i, k, n, baseind, coreind;
+    int i, k, baseind, coreind;
     int nlocal = atom->nlocal;
     int *mask = atom->mask;
-    double *data;
-
-    data = request_vector(0);
-    baseind = 0;
-
-    int my_nord;
-    int tlength = update->ntimestep - tstart;
-
-    if ( tlength <= nord ) {
-        my_nord = tlength;
-        generate_coefficients(my_nord - 2);
-        // printf("TEMPORARY: %i at TIMESTEP: %5i\n", tlength, update->ntimestep);
-        // for ( n=0; n < my_nord; n++ )
-        //     printf("COEFF: %14.8f\n", coeffs[n]);
-    }
-    else
-        my_nord = nord;
-
-    // comm->forward_comm_fix(this);
 
     comm->forward_comm();
     r2r_indices_forward();
 
-    for ( i=0; i<nlocal; i++ ) {
-      if ( mask[i] & groupbit )
-        for ( k=0; k<dim; k++)
-           qty[baseind+k] = coeffs[0] * data[baseind+k];
+    //FU| use the general ASPC prediction
+    FixASPC::predict();
 
-      baseind += dim;
-    }
-
-    for ( n=1; n<my_nord; n++ ) {
-
-      baseind = 0;
-      data = request_vector(n);
-
-      for ( i=0; i<nlocal; i++ ) {
-        if ( mask[i] & groupbit )
-          for ( k=0; k<dim; k++)
-             qty[baseind+k] += coeffs[n] * data[baseind+k];
-
-        baseind += dim;
-      }
-    }
+    //FU| and add the core position
+    //FUDO| additional communication needed?
 
     baseind = 0;
 
@@ -360,7 +310,6 @@ void FixASPCDrude::predict()
       baseind += dim;
     }
 
-    // comm->forward_comm_fix(this);
     r2r_indices_reverse();
 
 }
@@ -396,11 +345,11 @@ void FixASPCDrude::cpy2hist()
 int FixASPCDrude::check_convergence(double ecurrent, double eprevious, double **f)
 {
   int nlocal = atom->nlocal;
-  int i, k;
+  int i;
   int *mask = atom->mask;
   int noconv = 0;
   int allnoconv = 0;
-  int coreind, baseind;
+  int baseind;
 
   double fsqr;
   double ftolsqr = ftol*ftol;
@@ -415,15 +364,12 @@ int FixASPCDrude::check_convergence(double ecurrent, double eprevious, double **
       frc[2] = f[i][2] + hrm[baseind+2];
 
       fsqr = frc[0]*frc[0] + frc[1]*frc[1] + frc[2]*frc[2];
-      // printf("%14.8f %14.8f\n", f[i][0], delx*fbond);
 
       if (fsqr > ftolsqr)
         noconv += 1;
     }
     baseind += dim;
   }
-
-  // printf("%14.8f %14.8f %i\n", ecurrent, eprevious, noconv);
 
   MPI_Allreduce(&noconv,&allnoconv,1,MPI_INT,MPI_SUM,universe->uworld);
 
@@ -541,16 +487,7 @@ int FixASPCDrude::modify_param(int narg, char **arg)
 
   int iarg = 0;
   while (iarg < narg) {
-    if (strcmp(arg[iarg],"dmax") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
-      dmax = force->numeric(FLERR,arg[iarg+1]);
-      iarg += 2;
-    } else if (strcmp(arg[iarg],"zerovels") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
-      if (strcmp(arg[iarg+1], "yes") == 0) zerovels = 1;
-      else if (strcmp(arg[iarg+1], "no") == 0) zerovels = 0;
-      iarg += 2;
-    } else if (strcmp(arg[iarg],"kspace_compute_flag") == 0) {
+    if (strcmp(arg[iarg],"kspace_compute_flag") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       if (strcmp(arg[iarg+1], "yes") == 0) kspace_compute_flag = 1;
       else if (strcmp(arg[iarg+1], "no") == 0) kspace_compute_flag = 0;
@@ -593,60 +530,3 @@ int FixASPCDrude::modify_param(int narg, char **arg)
 
   return 2;
 }
-
-/* ---------------------------------------------------------------------- */
-int FixASPCDrude::pack_forward_comm(int n, int *list, double *buf, int pbc_flag, int *pbc)
-{
-  double ** x = atom->x, ** v = atom->v, ** f = atom->f;
-  int * type = atom->type, * drudetype = fix_drude->drudetype;
-  double dx,dy,dz;
-  int dim = domain->dimension;
-  int m = 0;
-  for (int i=0; i<n; i++) {
-    int j = list[i];
-    if (pbc_flag == 0 ||
-        (fix_drude->is_reduced && drudetype[type[j]] == DRUDE_TYPE)) {
-        for (int k=0; k<dim; k++) buf[m++] = x[j][k];
-    }
-    else {
-        if (domain->triclinic != 0) {
-            dx = pbc[0]*domain->xprd + pbc[5]*domain->xy;
-            dy = pbc[1]*domain->yprd;
-            if (dim == 3) {
-                dx += + pbc[4]*domain->xz;
-                dy += pbc[3]*domain->yz;
-                dz = pbc[2]*domain->zprd;
-            }
-        }
-        else {
-            dx = pbc[0]*domain->xprd;
-            dy = pbc[1]*domain->yprd;
-            if (dim == 3)
-                dz = pbc[2]*domain->zprd;
-        }
-        buf[m++] = x[j][0] + dx;
-        buf[m++] = x[j][1] + dy;
-        if (dim == 3)
-            buf[m++] = x[j][2] + dz;
-    }
-    for (int k=0; k<dim; k++) buf[m++] = v[j][k];
-    for (int k=0; k<dim; k++) buf[m++] = f[j][k];
-  }
-  return m;
-}
-
-/* ---------------------------------------------------------------------- */
-void FixASPCDrude::unpack_forward_comm(int n, int first, double *buf)
-{
-  double ** x = atom->x, ** v = atom->v, ** f = atom->f;
-  int dim = domain->dimension;
-  int m = 0;
-  int last = first + n;
-  for (int i=first; i<last; i++) {
-    for (int k=0; k<dim; k++) x[i][k] = buf[m++];
-    for (int k=0; k<dim; k++) v[i][k] = buf[m++];
-    for (int k=0; k<dim; k++) f[i][k] = buf[m++];
-  }
-}
-
-/* ---------------------------------------------------------------------- */

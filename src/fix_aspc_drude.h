@@ -43,17 +43,6 @@ class FixASPCDrude : public FixASPC {
   double compute_pe_scalar();
   void r2r_indices_forward();
   void r2r_indices_reverse();
-  int pack_forward_comm(int n, int *list, double *buf, int pbc_flag, int *pbc);
-  void unpack_forward_comm(int n, int first, double *buf);
-  // void allocate();
-  // void deallocate();
-  // void setup_style();
-
-  // derived child classes must provide these functions
-  // FUDO| we'll do it differently, we'll assume 
-
-  // virtual int iterate(int) = 0;
-  // virtual void setup_style() = 0;
 
  protected:
   void correct();

@@ -35,25 +35,12 @@ class FixASPC : public Fix {
   void reset_vectors();
   void sort_vectors();
   void update_history();
-  // void allocate();
-  // void deallocate();
-  // void setup_style();
   void final_integrate();
   void initial_integrate(int);
   void pre_force(int);
   virtual void setup_pre_force(int);
   int modify_param(int narg, char **arg);
 
-  // void setup_pre_force(int);
-  // void setup_pre_force_respa(int, int);
-  // void pre_force_respa(int, int, int);
-  // void pre_force(int);
-
-  // derived child classes must provide these functions
-  // FUDO| we'll do it differently, we'll assume 
-
-  // virtual int iterate(int) = 0;
-  // virtual void setup_style() = 0;
 
   int setmask();
 
@@ -69,7 +56,6 @@ class FixASPC : public Fix {
  protected:
   int length, nord;             // length of the predictor
   int dim;                     // dimensionality of the thing to be aspc'ed
-  int zerovels;                // zero-out particle velocities if needed
   double damp;                 // damping factor to be used in simulation, if set to something negative, default is used
   int what;                  // what to predict/correct
   int first;                   // at which timestep is the fix initialized
@@ -82,13 +68,8 @@ class FixASPC : public Fix {
 
   class Compute *pe_compute;        // compute for potential energy
   double ecurrent;                  // current potential energy
-  double dmax;                // max dist to move any atom in one step
 
-  //FU| copying in bulk - still needs sorting
-
-  int triclinic;              // 0 if domain is orthog, 1 if triclinic
   int eflag,vflag;            // flags for energy/virial computation
-  int virial_style;           // compute virial explicitly or implicitly
   int external_force_clear;   // clear forces locally or externally
 
   int torqueflag,extraflag;
@@ -100,18 +81,12 @@ class FixASPC : public Fix {
 
   void force_clear();
 
-  // void setup();
-  // void setup_minimal();
-
   void generate_coefficients(int);
   double get_Bj(int n, int k);
   virtual void predict();
   virtual void correct();
   virtual void cpy2hist();
-  void reset_history();
-  void clear_non_group();
 
-  //FUDO| double-check this function
   long long combi(int n,int k);
 
   int tstart;

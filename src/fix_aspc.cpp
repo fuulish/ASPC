@@ -62,35 +62,22 @@ FixASPC::FixASPC(LAMMPS *lmp, int narg, char **arg) : Fix(lmp,narg,arg)
   if ( damp < 0 )
       damp = (length + 2.) / (2.*length + 3.);
 
-  /*FUDO| set some default for what and dim */
+  //FU| defaults
   what = NONE;
   dim = 0;
-
-  //FU| some defaults that can be changed by fix_modify
-  //FUDO| check and see if we should actually still use the dmax
-
-  //FUDO| actually use dmax?!
-  // dmax = 0.01;
 
   eflag = 1;
   vflag = 0;
 
-  //FUDO| save this to determine the offset later one (we might/should not be inserting here in the first step)
-  //FUDO| is this correct here, or do we need to do this in init?
   first = update->ntimestep;
+  nonlyhist = 0;
+  filledhist = 0;
 
-  //FUDO| this is probably dangerous to set to 1 by default
-  zerovels = 1;
-
+  //FU| memory-related
   nvector = 0;
   peratom = NULL;
   vectors = NULL;
   coeffs = NULL;
-
-  //FUDO| we'll skip the first step, because we have a history of all zeros
-  //FUDO| alternatively we could fill up the history with the current displacement
-  nonlyhist = 0;
-  filledhist = 0;
 
   atom->add_callback(0);
 }
@@ -123,23 +110,15 @@ void FixASPC::init()
    if (atom->avec->forceclearflag) extraflag = 1;
 
    // allow pair and Kspace compute() to be turned off via modify flags
-   // FUDO| this should be included in some way, not sure how
+   // FU| this should be included in some way, not sure how
    
    if (force->pair && force->pair->compute_flag) pair_compute_flag = 1;
    else pair_compute_flag = 0;
    if (force->kspace && force->kspace->compute_flag) kspace_compute_flag = 1;
    else kspace_compute_flag = 0;
 
-   // FUDO| this is prolly totally irrelevant for us
-   // orthogonal vs triclinic simulation box
-   
-   triclinic = domain->triclinic;
-   
    bigint ndofme = 3 * static_cast<bigint>(atom->nlocal);
    MPI_Allreduce(&ndofme,&ndoftotal,1,MPI_LMP_BIGINT,MPI_SUM,world);
-
-   // FUDO| perform add_vector here for order vectors with nper dimension
-   // FUDO| instead of add_vector just use the general memor allocation routines, because we know what we need
 
    if ( what == NONE )
       error->all(FLERR, "Don't know what to predict/correct");
@@ -150,11 +129,6 @@ void FixASPC::init()
    tstart = update->ntimestep;
 
    generate_coefficients(length);
-
-   // FUDO| this would be nice to do, but we cannot, because we're not in reduced coordinates yet
-   // if (nonlyhist == 1)
-   //   for ( int n=0; n<nord; n++ )
-   //     update_history();
 
 }
 
@@ -188,12 +162,17 @@ void FixASPC::reset_vectors()
             case COORDS:
                 qty = atom->x[0];
                 break;
+/* FU| these could/should be included in later versions
+            case DIPOLE:
+                qty = atom->mu;
+                break;
             case QEQ:
                 qty = atom->q;
                 break;
             case QEQREAX:
                 qty = atom->q;
                 break;
+*/
             default:
                 error->all(FLERR, "Do not know which quantity to predict/correct");
                 break;
@@ -204,7 +183,7 @@ void FixASPC::reset_vectors()
 
 void FixASPC::update_history()
 {
-    //FUDO | copy new history element into vectors
+    //FU| move current state to history and all other previous histories
 
     int i, k;
     double *old, *ndt;
@@ -224,7 +203,9 @@ void FixASPC::update_history()
 
 void FixASPC::cpy2hist()
 {
-    int i, k;
+    //FU| copy current state to history
+
+    int i;
     double *data;
 
     data = request_vector(0);
@@ -240,16 +221,7 @@ int FixASPC::modify_param(int narg, char **arg)
 
   int iarg = 0;
   while (iarg < narg) {
-    if (strcmp(arg[iarg],"dmax") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
-      dmax = force->numeric(FLERR,arg[iarg+1]);
-      iarg += 2;
-    } else if (strcmp(arg[iarg],"zerovels") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
-      if (strcmp(arg[iarg+1], "yes") == 0) zerovels = 1;
-      else if (strcmp(arg[iarg+1], "no") == 0) zerovels = 0;
-      iarg += 2;
-    } else if (strcmp(arg[iarg],"kspace_compute_flag") == 0) {
+    if (strcmp(arg[iarg],"kspace_compute_flag") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       if (strcmp(arg[iarg+1], "yes") == 0) kspace_compute_flag = 1;
       else if (strcmp(arg[iarg+1], "no") == 0) kspace_compute_flag = 0;
@@ -275,10 +247,6 @@ int FixASPC::modify_param(int narg, char **arg)
   return 2;
 }
 
-//FUDO| check in general what to do with the velocties and where to do it
-//FUDO| i.e., if we to predict/correct coordinates it would be useful not to additionally integrate it in the verlet cycle, hence zero-ing out the velocities makes sense
-//FUDO| this could be done in pre-/post-force and similar
-
 void FixASPC::final_integrate()
 {
     reset_vectors();
@@ -288,22 +256,9 @@ void FixASPC::final_integrate()
 void FixASPC::initial_integrate(int vflag)
 {
 
-    //FUDO| need to set the sorted vectors
-    //FUOD| not sure, but reset should prolly not be needed
-
     reset_vectors();
 
-    double **v = atom->v;
-    int nlocal = atom->nlocal;
-    int *mask = atom->mask;
-
-    if ( zerovels )
-      for ( int i=0; i<nlocal; i++ )
-        if ( mask[i] & groupbit )
-          v[i][0] = v[i][1] = v[i][2] = 0.0;
-
     if ( !(filledhist) ) {
-      // for ( int n=0; n<nord; n++ )
       update_history();
 
       filledhist = 1;
@@ -317,7 +272,7 @@ void FixASPC::initial_integrate(int vflag)
 
 void FixASPC::setup_pre_force(int vflag)
 {
-    //FUDO| there's nothing in the history yet, and nothing to predict from, hence only to the correction
+    //FU| there's nothing in the history yet, and nothing to predict from, hence only to the correction
     pre_force(vflag);
     comm->forward_comm();
 
@@ -332,15 +287,8 @@ void FixASPC::pre_force(int vflag)
     reset_vectors();
     correct();
 
-    //FUDO| we'll not do re-neighboring, should we? 
+    //FU| we'll not do re-neighboring, should we? 
     comm->forward_comm();
-}
-
-void FixASPC::reset_history()
-{
-    int i, k, baseind;
-    int *mask = atom->mask;
-
 }
 
 void FixASPC::predict()
@@ -357,20 +305,18 @@ void FixASPC::predict()
     int my_nord;
     int tlength = update->ntimestep - tstart;
 
+    //FU| if we don't have a fully accumulated history, yet, start with a smaller one
     if ( tlength <= nord ) {
         my_nord = tlength;
         generate_coefficients(my_nord - 2);
-        // printf("TEMPORARY: %i\n", tlength);
-        // for ( n=0; n < my_nord; n++ )
-        //     printf("COEFF: %14.8f\n", coeffs[n]);
     }
     else
         my_nord = nord;
 
+    //FU| use the first iteration as assignment, would also work if qty gets reset to zero each time
     for ( i=0; i<nlocal; i++ ) {
       if ( mask[i] & groupbit )
         for ( k=0; k<dim; k++) {
-           // printf("OLD: %14.8f %14.8f %14.8f\n", data[baseind], data[baseind+1], data[baseind+2]);
            qty[baseind+k] = coeffs[0] * data[baseind+k];
         }
 
@@ -393,27 +339,14 @@ void FixASPC::predict()
 
 }
 
-//FUDO| specific routine needs to be added for each fix
-//FUDO| we need a function to provide the scf step that we can then use to perform the damped propagation with
+//FU| specific routine needs to be added for each fix
 void FixASPC::correct()
 {
-}
-
-void FixASPC::clear_non_group()
-{
-    int *mask = atom->mask;
-    int nlocal = atom->nlocal;
-    double **f = atom->f;
-
-    for ( int i=0; i<nlocal; i++ )
-      if ( !( mask[i] & groupbit ) )
-          f[i][0] = f[i][1] = f[i][2] = 0.;
 }
 
 int FixASPC::setmask()
 {
   int mask = 0;
-  // FUDO| what is the correct setup function for INITIAL_INTEGRATE
   mask |= INITIAL_INTEGRATE;
   mask |= FINAL_INTEGRATE;
   mask |= PRE_FORCE;
@@ -422,14 +355,10 @@ int FixASPC::setmask()
 
 void FixASPC::generate_coefficients(int len)
 {
-    //FUDO| issue with long long to double casting? do we need that explicitly? 
-    // B_j = (-1)^(j+1) * j * (2n + 2, n + 1 - j ) / (2n, n)
-
-    //FUDO| we start with counting with j=0, but the coefficients are B_(j+1)
+    //FU| we start with counting with j=0, but the coefficients are B_(j+1)
 
     int ordpo = len + 1;
 
-    //FUDO| double-check all the coefficients
     for ( int i=0; i<nord; i++ ) {
         int k = i+1;
         coeffs[i] = get_Bj (ordpo, k);
@@ -438,10 +367,12 @@ void FixASPC::generate_coefficients(int len)
 
 double FixASPC::get_Bj(int n, int k)
 {
+    // B_j = (-1)^(j+1) * j * (2n + 2, n + 1 - j ) / (2n, n)
+
     return pow(-1, k+1) * k * combi (2 * n + 2, n + 1 - k ) / combi (2 * n, n);
 }
 
-// FUDO| taken from: http://stackoverflow.com/questions/24294192/computing-the-binomial-coefficient-in-c
+// FU| taken from: http://stackoverflow.com/questions/24294192/computing-the-binomial-coefficient-in-c
 long long FixASPC::combi(int n,int k)
 {
     long long ans=1;
@@ -566,5 +497,3 @@ int FixASPC::unpack_exchange(int nlocal, double *buf)
   }
   return n;
 }
-
-//FUDO| AFAICT we also need pack_forward and unpack_forward?!?
