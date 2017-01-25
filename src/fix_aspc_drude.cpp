@@ -59,8 +59,6 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
 
   if (narg < 6) error->all(FLERR,"Illegal fix ASPCDrude command");
 
-  printf("%i number of arguments\n", narg);
-
   kd = force->numeric(FLERR,arg[5]);
 
   what = COORDS;
@@ -124,15 +122,15 @@ void FixASPCDrude::init()
 
 void FixASPCDrude::setup_pre_force(int vflag)
 {
-    //FUDO| only works if drudeid is set here, or in correct/predict-kinda location
     reset_vectors();
     drudeid = fix_drude->drudeid;
 
-    //FUDO| if included segfaults, but exclusion doesn't matter much, because
-    //FUDO| position of drude particles should be minimized in the first step
-    //FUDO| anyhow - even if not, no real problem...
-    // pre_force(vflag);
-    // comm->forward_comm();
+    modify->setup_pre_reverse(eflag, vflag);
+    if (force->kspace)
+      force->kspace->setup();
+
+    pre_force(vflag);
+    comm->forward_comm();
 
     update_history();
 

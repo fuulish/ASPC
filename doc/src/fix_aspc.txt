@@ -51,7 +51,7 @@ In a more abstract form, the dipole moments are obtained by a self-consistent eq
  \mu = M(\mu, r_1, r_2, ..., r_N).
 \end\{equation\}
 
-Here, :math:`\mu` is the set of induced dipoles :math:`\mu`:sub:`1`, :math:`\mu`:sub:`2`, ..., :math:`\mu`:sub:`N` and :math:`M` is a prescription for obtaining a new set of induced dipoles from the previous ones, and :math:`r`:sub:`1`, :math:`r`:sub:`2`, ..., :math:`r`:sub:`N` are the positions of the polarizable sites.
+Here, :math:`\mu` is the set of induced dipoles :math:`\mu`:sub:`1`, :math:`\mu`:sub:`2`, ..., :math:`\mu`:sub:`N` and :math:`M` is a prescription for obtaining a new set of induced dipoles from the previous ones, and :math:`r`:sub:`1`, :math:`r`:sub:`2`, ..., :math:`r`:sub:`N` are the positions of the particles in the system.
 
 Solving these equation explicitly at each time step is very costly, due to their repeated evaluation.
 Several methods exist to approximate the SCF solution.
