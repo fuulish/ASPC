@@ -36,58 +36,75 @@ fix 1 DRUDES aspc/drude 2 -1. 1000 :pre
 
 [Description:]
 
-The explicit inclusion of polarizbality into a system requires the solution of self-consistent field (SCF) equations to obtain the correct, induced polarization.
+These fixes handle treatment of explicit polarizability using the time-reversible always-stable predictor-corrector algorithm ("Kolafa"_#Kolafa).
+In general, the explicit inclusion of polarizbality into a system requires the solution of self-consistent field (SCF) equations to obtain the correct, induced polarization.
 For induced dipoles this can be expressed as
 
 \begin\{equation\}
- \mu = \alpha E.
+ \mu_i = \alpha_i E_\{loc\}.
 \end\{equation\}
 
-Here, :math:`\mu` are the induced dipole moments, and :math:`E` is the local field at the polarizable point with polarizability :math:`\alpha` .
-More general, the dipole moments are obtained by a self-consistent equation:
+Here, :math:`\mu`:sub:`i` are the induced dipole moments, and :math:`E`:sub:`loc` is the local field at the polarizable point with polarizability :math:`\alpha`:sub:`i` .
+In a more abstract form, the dipole moments are obtained by a self-consistent equation:
 
 \begin\{equation\}
- \mu = M(\mu, r_1, r_2, ..., r_N)
+ \mu = M(\mu, r_1, r_2, ..., r_N).
 \end\{equation\}
 
-Solving these equation explicitly at each time step is very costly, and several methods exist to approximate the SCF solution.
-The {aspc} family of fixes integrates the equations of motion of the induced dipoles as described in "Kolafa"_#Kolafa.
+Here, :math:`\mu` is the set of induced dipoles :math:`\mu`:sub:`1`, :math:`\mu`:sub:`2`, ..., :math:`\mu`:sub:`N` and :math:`M` is a prescription for obtaining a new set of induced dipoles from the previous ones, and :math:`r`:sub:`1`, :math:`r`:sub:`2`, ..., :math:`r`:sub:`N` are the positions of the polarizable sites.
+
+Solving these equation explicitly at each time step is very costly, due to the repeated evaluation of the electric field. 
+Several methods exist to approximate the SCF solution.
+The {aspc} family of fixes integrates the equations of motion of the inducible dipoles as described in "Kolafa"_#Kolafa.
 The algorithm first estimates the induced dipoles using a predictor of variable chain length.
 This estimate is then corrected by application of the self-consistent field equation (usually once) on top of the newly predicted induced dipoles.
 
 The predictor is a linear extrapolation:
 
 \begin\{equation\}
- \mu^p(t+h) = 2 \mu(t) - \mu(t-h) + \sum_\{j=1\}^\{k\} A_j \{ \mu(t-\[j+1\]h) - 2\mu(t-jh) + \mu(t - \[j-1\]h) \}.
+ \mu^p(t+h) = 2 \mu(t) - \mu(t-h) + \sum_\{j=1\}^\{k\} A_j \[ \mu(t-\[j+1\]h) - 2\mu(t-jh) + \mu(t - \[j-1\]h) \],
 \end\{equation\}
 
-The coefficients A\ :sub:`j`\ have been determined to ensure time-reversibility by
+with :math:`k` additional terms.  
+The coefficients A\ :sub:`j` have been determined to ensure time-reversibility by
 cancelling as many terms as possible that cause irreversibilty in the
 integration of the equations of motion.
 
 The actual implementation uses the simplified form of the predictor:
 
 \begin\{equation\}
- \mu^\{p\}(t+h) = \sum_\{j=0\}^\{k-1\} B_\{j+1\} \mu (t-jh)
+ \mu^\{p\}(t+h) = \sum_\{j=0\}^\{k+1\} B_\{j+1\} \mu (t-jh)
 \end\{equation\}
 
 where
 
 \begin\{equation\}
- B_j = A_j - 2 A_\{j-1\} + A_\{j-2\}.
+ B_j = A_j - 2 A_\{j-1\} + A_\{j-2\},
 \end\{equation\}
 
+with :math:`A`:sub:`0`:math:`=-1`, and :math:`A`:sub:`-1`:math:`=0` .
 The predictor collects a history of appropriate length.
 It uses a shorter chain during the initial integration, when not all terms are
 available.
 
-The induced dipoles at the next integration step are then:
+The induced dipoles at the next integration step are then obtained by applying the corrector :math:`M` on top of the predicted, induced dipoles:
 
 \begin\{equation\}
  \mu(t+h) = \omega M (\mu^\{p\}(t+h)) + (1-\omega) \mu^\{p\}(t+h)
 \end\{equation\}
 
-where :math:`M` is one iteration in the self-consisten field cycle.
+where :math:`M`, again, is one iteration in the self-consistent field cycle, i.e., the corrector.
+:math:`\omega` is a damping factor between 0 and 1.
+For a given predictor chain length :math:`k` one obtaines
+
+\begin\{equation\}
+ \omega = \frac\{k+2\}\{2k+3\}
+\end\{equation\}
+
+as parameter, that yields stable dynamics for a(ny) converging SCF.
+For optimal performance, and higher accuracy, :math:`\omega` can be tuned, i.e., higher values can be used than the default one.
+The dynamics will become unstable though for a certain :math:`\omega` .
+It is recommended to use values higher than the default :math:`\omega` , which still yield stable dynamics.
 
 For the {drude} style the fix first checks if the group only contains Drude
 particles.
@@ -102,7 +119,7 @@ NOTE: The Drude particles must not have a vdW potential acting on them, i.e.,
 coefficients in, e.g., "lj/cut/coul/long"_pair_lj.html should be set to zero.
 
 NOTE: For aspc/drude the force constants of all Drude particles needs to be the
-same and has to be specified explicitly, in the form :math:`U = 0.5 k (x - x_0)^2` ,
+same and has to be specified explicitly, in the form :math:`U = 0.5 k (x - x_0)`:sup:`2` ,
 where :math:`k` is the force constant.
 
 :line
@@ -125,7 +142,9 @@ drude/transform"_fix_drude_transform.html, "compute
 temp/drude"_compute_temp_drude.html, "pair_style
 thole"_pair_thole.html
 
-[Default:] None
+[Default:] 
+
+neval = 1, and no SCF convergence criterion is used.
 
 :line
 
