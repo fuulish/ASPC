@@ -60,8 +60,6 @@ FixASPCDipole::FixASPCDipole(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,na
 
   if (narg < 5) error->all(FLERR,"Illegal fix ASPCDipole command");
 
-  printf("%i number of arguments\n", narg);
-
   what = DIPOLES;
   dim = 4;
   ndx_dim = 3;
