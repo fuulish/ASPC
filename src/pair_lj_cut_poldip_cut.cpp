@@ -66,7 +66,6 @@ void PairLJCutPoldipCut::compute(int eflag, int vflag)
   double forcecoulx,forcecouly,forcecoulz,crossx,crossy,crossz;
   double tixcoul,tiycoul,tizcoul,tjxcoul,tjycoul,tjzcoul;
   double fq,pdotp,pidotr,pjdotr,pre1,pre2,pre3,pre4;
-  double dpfldx,dpfldy,dpfldz,qfrcx,qfrcy,qfrcz;
   double forcelj,factor_coul,factor_lj;
   int *ilist,*jlist,*numneigh,**firstneigh;
 
@@ -200,8 +199,6 @@ void PairLJCutPoldipCut::compute(int eflag, int vflag)
         }
         else if ( (compute_efld) && (rsq < cut_coulsq[itype][jtype]) ) {
 
-          // printf("HELOOP\n");
-
             r3inv = r2inv*rinv;
             // pre1 = q[j]*r3inv;
             pre1 = r3inv;
@@ -224,7 +221,6 @@ void PairLJCutPoldipCut::compute(int eflag, int vflag)
         // LJ interaction
 
         if ( !(compute_efld) && (rsq < cut_ljsq[itype][jtype]) ) {
-        // if ( (force->pair->compute_vdw) && (rsq < cut_ljsq[itype][jtype]) ) {
           r6inv = r2inv*r2inv*r2inv;
           forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
           forcelj *= factor_lj * r2inv;
@@ -264,12 +260,6 @@ void PairLJCutPoldipCut::compute(int eflag, int vflag)
             // }
         }
 
-        // force & torque accumulation
-
-        // torque[i][0] += fq*tixcoul;
-        // torque[i][1] += fq*tiycoul;
-        // torque[i][2] += fq*tizcoul;
-
         if ( (newton_pair || j < nlocal) ) {
           if (compute_efld) {
 
@@ -299,9 +289,6 @@ void PairLJCutPoldipCut::compute(int eflag, int vflag)
             f[j][1] -= fy;
             f[j][2] -= fz;
 
-          // torque[j][0] += fq*tjxcoul;
-          // torque[j][1] += fq*tjycoul;
-          // torque[j][2] += fq*tjzcoul;
             }
         }
 

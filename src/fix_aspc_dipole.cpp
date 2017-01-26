@@ -96,7 +96,6 @@ FixASPCDipole::FixASPCDipole(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,na
            0.0030119505336064496;
            /* convert 4 * pi * eps_0 (farad/m, coulomb/volt/m, coulomb^2/joule/m) to kcal/mol/e/angstrom (this is the cgs conversion factor) */
 
-  // comm_forward = 9;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -136,7 +135,7 @@ void FixASPCDipole::correct()
     for ( i=0; i<nlocal; i++ ) {
       if ( mask[i] & groupbit ) {
 
-        // FUDO| save the predicted positions
+        //FU| save the predicted dipoles
         for ( k=0; k<ndx_dim; k++)
             dx[baseind+k] = qty[baseind+k];
 
@@ -156,7 +155,8 @@ void FixASPCDipole::correct()
         for ( i=0; i<nlocal; i++ ) {
           if ( mask[i] & groupbit ) {
 
-          //FUDO| this might lead to issues when initially a point dipole is defined for the atom, but no polarizability
+          //FU| this might lead to issues when initially a point dipole is defined for the atom, but no polarizability
+          //FU| that is a case we cannot treat right now
           if ( alf[i] == 0.0 ) {
               baseind += dim;
             continue;
@@ -216,8 +216,8 @@ void FixASPCDipole::correct()
             nrm += qty[baseind+k]*qty[baseind+k];
         }
 
-        //FUDO| update the total dipole moment
-        //FUDO| it should be k here, because it already has been increased, should it not?
+        //FU| update the total dipole moment
+        //FU| it should be k here, because it already has been increased, should it not?
         qty[baseind+k] = sqrt(nrm);
 
       }
@@ -228,7 +228,7 @@ void FixASPCDipole::correct()
 
 }
 
-//FUDO| this needs to be adapted to new variables, i.e., check change in dipole moment
+//FU| this could be adapted to new variables, i.e., check change in dipole moment
 int FixASPCDipole::check_convergence(double ecurrent, double eprevious, double **f, double *oldf)
 {
   int nlocal = atom->nlocal;
@@ -251,12 +251,11 @@ int FixASPCDipole::check_convergence(double ecurrent, double eprevious, double *
       dltf[2] = f[i][2] - oldf[baseind+2];
 
       fsqr = dltf[0]*dltf[0] + dltf[1]*dltf[1] + dltf[2]*dltf[2];
-      // printf("%14.8f %14.8f\n", f[i][0], delx*fbond);
 
       if (fsqr > ftolsqr)
         noconv += 1;
 
-      //FUDO| update old forces
+      //FU| update old field
       oldf[baseind+0] = f[i][0];
       oldf[baseind+1] = f[i][1];
       oldf[baseind+2] = f[i][2];
@@ -280,7 +279,7 @@ double FixASPCDipole::energy_force_es(int resetflag)
 
   timer->stamp();
 
-  //FUDO| introduce new variables calcVDW to include/exclude vDW calculations
+  //FU| make sure to only get electric field
 
   force->pair->compute_efld = 1;
   if (pair_compute_flag) {
@@ -404,9 +403,6 @@ void FixASPCDipole::predict()
     if ( tlength <= nord ) {
         my_nord = tlength;
         generate_coefficients(my_nord - 2);
-        // printf("TEMPORARY: %i\n", tlength);
-        // for ( n=0; n < my_nord; n++ )
-        //     printf("COEFF: %14.8f\n", coeffs[n]);
     }
     else
         my_nord = nord;
@@ -414,7 +410,6 @@ void FixASPCDipole::predict()
     for ( i=0; i<nlocal; i++ ) {
       if ( mask[i] & groupbit ) {
         for ( k=0; k<ndx_dim; k++) {
-           // printf("OLD: %14.8f %14.8f %14.8f\n", data[baseind], data[baseind+1], data[baseind+2]);
            qty[baseind+k] = coeffs[0] * data[baseind+k];
         }
       }
@@ -436,15 +431,13 @@ void FixASPCDipole::predict()
       }
     }
 
-    //FUDO| we should calculate the norm separately, shouldn't we?!?!?!?!?!??
-
+    //FU| calculating the total dipole moment seperatly, not predicted!
     double nrm;
     baseind = 0;
     for ( i=0; i<nlocal; i++ ) {
       if ( mask[i] & groupbit ) {
         nrm = 0.;
         for ( k=0; k<ndx_dim; k++) {
-           // printf("OLD: %14.8f %14.8f %14.8f\n", data[baseind], data[baseind+1], data[baseind+2]);
            nrm += qty[baseind+k]*qty[baseind+k];
         }
         nrm = sqrt(nrm);
@@ -455,3 +448,4 @@ void FixASPCDipole::predict()
     }
 }
 
+//FUDO| need function that adds polarization energy to the total energy, if requested (i.e., 0.5 mu^2/alpha)
