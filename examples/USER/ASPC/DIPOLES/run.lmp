@@ -1,0 +1,63 @@
+# created by fftool
+
+units real
+boundary f f f
+
+atom_style hybrid full poldip
+bond_style harmonic
+angle_style harmonic
+special_bonds lj/coul 0.0 0.0 0.5
+
+pair_style lj/cut/poldip/cut 50 50
+
+read_data data.lmp
+# read_restart restart.*.lmp
+
+pair_coeff    1    1   0.195000     3.198656  # Ow Ow
+pair_coeff    2    2   0.000000     0.000000  # Hw Hw
+pair_coeff    3    3   0.000000     0.000000  # L L
+
+group INDIP type 1
+
+variable nsteps equal 10000
+variable nprint equal 10
+variable ndump equal 10
+# variable nrestart equal ${nsteps}/10
+
+variable TS equal 100.0
+variable TK equal 100.0
+variable PBAR equal 1.0
+
+neighbor 2.0 bin
+neigh_modify one 100000 page 1000000
+
+timestep 1.0
+
+velocity all create ${TK} 12345
+
+compute TATOM all temp/com
+
+delete_bonds all multi
+fix TVSTAT all rigid/nvt/small molecule temp ${TS} ${TK} 100
+
+fix ASPC all aspc/dipole 2 ${DAMP}
+
+fix MOM all momentum 10 angular
+
+dump TRAJ all custom ${ndump} dump.${DAMP}.lammpstrj id mol type element xu yu zu fx fy fz vx vy vz mux muy muz
+dump_modify TRAJ element O H L sort 1
+
+compute MOL all chunk/atom molecule
+compute DIP INDIP dipole/chunk MOL
+
+#variable DIP equal "sqrt(mux*mux+muy*muy+muz+muz)"
+
+fix AVT_I all ave/time ${ndump} 1 ${ndump} c_DIP[*] file dip.${DAMP}.out mode vector
+
+thermo_style custom step cpu etotal ke pe ebond eangle evdwl ecoul elong press vol temp c_TATOM
+thermo ${nprint}
+
+run ${nsteps}
+
+write_restart restart.*.lmp
+write_data data.*.lmp

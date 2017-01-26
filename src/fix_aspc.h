@@ -61,7 +61,7 @@ class FixASPC : public Fix {
   int first;                   // at which timestep is the fix initialized
   bigint ndoftotal;           // total dof for entire problem
 
-  enum{NONE,COORDS,QEQ,QEQREAX}; // possible things to predict/correct
+  enum{NONE,COORDS,QEQ,QEQREAX,DIPOLES}; // possible things to predict/correct
 
   int nvec;                   // local atomic dof = length of xvec
   double *qty;                // variables for atomic dof, as 1d vector

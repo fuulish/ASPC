@@ -162,10 +162,10 @@ void FixASPC::reset_vectors()
             case COORDS:
                 qty = atom->x[0];
                 break;
-/* FU| these could/should be included in later versions
-            case DIPOLE:
-                qty = atom->mu;
+            case DIPOLES:
+                qty = atom->mu[0];
                 break;
+/* FU| these could/should be included in later versions
             case QEQ:
                 qty = atom->q;
                 break;
