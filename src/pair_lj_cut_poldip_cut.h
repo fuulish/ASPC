@@ -13,7 +13,7 @@
 
 #ifdef PAIR_CLASS
 
-PairStyle(lj/cut/tholedip/cut,PairLJCutPoldipCut)
+PairStyle(lj/cut/poldip/cut,PairLJCutPoldipCut)
 
 #else
 

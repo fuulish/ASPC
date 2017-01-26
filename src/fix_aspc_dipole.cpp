@@ -69,7 +69,6 @@ FixASPCDipole::FixASPCDipole(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,na
   // FUDO| need additional check whether lj/cut/coul/<cut/long>/sa is active, if not abort...
   // make sure dim is always the right number here!
 
-  zerovels = 0;
   neval = 1;
   scf = 0;
   ftol = 1.e-02;
@@ -127,7 +126,6 @@ void FixASPCDipole::correct()
     double eprevious, ecurrent;
 
     double **f = atom->f;
-    double *q = atom->q;
     double onemdamp = 1. - damp;
     double *alf = atom->alf;
 
@@ -234,7 +232,7 @@ void FixASPCDipole::correct()
 int FixASPCDipole::check_convergence(double ecurrent, double eprevious, double **f, double *oldf)
 {
   int nlocal = atom->nlocal;
-  int i, k;
+  int i;
   int *mask = atom->mask;
   int noconv = 0;
   int allnoconv = 0;
