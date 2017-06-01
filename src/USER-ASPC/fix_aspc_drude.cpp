@@ -57,9 +57,13 @@ enum{MAXITER,MAXEVAL,FTOL};
 FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg,arg)
 {
 
-  if (narg < 6) error->all(FLERR,"Illegal fix ASPCDrude command");
+  if (narg < 7) error->all(FLERR,"Illegal fix ASPCDrude command");
 
   kd = force->numeric(FLERR,arg[5]);
+
+  int n = strlen(arg[6]) + 1;
+  id_ef = new char[n];
+  strcpy(id_ef,arg[6]);
 
   what = COORDS;
   dim = 3;
@@ -69,7 +73,7 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   ftol = 1.e-02;
   printconv = 0;
 
-  int iarg = 6;
+  int iarg = 7;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"scf") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
@@ -93,6 +97,8 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
 
 FixASPCDrude::~FixASPCDrude()
 {
+  delete [] id_ef;
+
   memory->destroy(dx);
   memory->destroy(hrm);
 }
@@ -106,6 +112,13 @@ void FixASPCDrude::init()
     if (strcmp(modify->fix[ifix]->style,"drude") == 0) break;
   if (ifix == modify->nfix) error->all(FLERR, "ASPCDrude for DRUDE requires fix drude");
   fix_drude = (FixDrude *) modify->fix[ifix];
+
+  //FUX| handle if compute id not found
+  int ief = modify->find_compute(id_ef);
+  if (ief < 0)
+    error->all(FLERR,"Compute ID for fix efield/atom does not exist");
+
+  c_ef = modify->compute[ief];
 
   //FU| perform additional check whether only drude types have been included
 
@@ -137,12 +150,15 @@ void FixASPCDrude::correct()
     int coreind;
     double df;
 
-    double eprevious, ecurrent;
-
-    double **f = atom->f;
+    double *q = atom->q;
     double onemdamp = 1. - damp;
 
-    eprevious = energy_force_es(1);
+    // just in case it has been called before
+    if( !(c_ef->invoked_peratom == update->ntimestep) )
+      c_ef->compute_peratom();
+    
+    //FUX | AFAICT the array shouldn't grow in one correct() step
+    double **f = c_ef->array_atom;
 
     baseind = 0;
 
@@ -179,7 +195,7 @@ void FixASPCDrude::correct()
 
             for ( k=0; k<dim; k++) {
 
-              df = f[i][k] / kd;
+              df = q[i] * f[i][k] / kd;
               qty[baseind+k] = qty[coreind+k] + df;
             }
 
@@ -194,14 +210,13 @@ void FixASPCDrude::correct()
 
         if ( scf ) {
           r2r_indices_reverse();
-          ecurrent = energy_force_es(1);
+          c_ef->compute_peratom();
           r2r_indices_forward();
 
           //FU| we don't need the energy, convergence only checked on forces
           calc_spring_forces_energy();
 
-          conv = check_convergence(ecurrent, eprevious, f);
-          eprevious = ecurrent;
+          conv = check_convergence(f);
 
           //FU| possibly add other convergence criteria
           if ( conv ) {
@@ -216,7 +231,7 @@ void FixASPCDrude::correct()
         }
         else if ( n < nmaxener ) {
           r2r_indices_reverse();
-          ecurrent = energy_force_es(1);
+          c_ef->compute_peratom();
           r2r_indices_forward();
         }
 
@@ -332,11 +347,12 @@ void FixASPCDrude::cpy2hist()
 
 }
 
-int FixASPCDrude::check_convergence(double ecurrent, double eprevious, double **f)
+int FixASPCDrude::check_convergence(double **f)
 {
   int nlocal = atom->nlocal;
   int i;
   int *mask = atom->mask;
+  double *q = atom->q;
   int noconv = 0;
   int allnoconv = 0;
   int baseind;
@@ -349,9 +365,9 @@ int FixASPCDrude::check_convergence(double ecurrent, double eprevious, double **
   for ( i=0; i<nlocal; i++ ) {
     if ( mask[i] & groupbit ) {
   
-      frc[0] = f[i][0] + hrm[baseind];
-      frc[1] = f[i][1] + hrm[baseind+1];
-      frc[2] = f[i][2] + hrm[baseind+2];
+      frc[0] = q[i] * f[i][0] + hrm[baseind];
+      frc[1] = q[i] * f[i][1] + hrm[baseind+1];
+      frc[2] = q[i] * f[i][2] + hrm[baseind+2];
 
       fsqr = frc[0]*frc[0] + frc[1]*frc[1] + frc[2]*frc[2];
 
@@ -368,64 +384,6 @@ int FixASPCDrude::check_convergence(double ecurrent, double eprevious, double **
 
   return 0;
 
-}
-
-double FixASPCDrude::energy_force_es(int resetflag)
-{
-  force_clear();
-
-  timer->stamp();
-
-  if (pair_compute_flag) {
-    force->pair->compute(eflag,vflag);
-    timer->stamp(Timer::PAIR);
-  }
-
-  if (kspace_compute_flag) {
-    force->kspace->compute(eflag,vflag);
-    timer->stamp(Timer::KSPACE);
-  }
-
-  if (modify->n_pre_reverse) {
-    modify->pre_reverse(eflag,vflag);
-    timer->stamp(Timer::MODIFY);
-  }
-
-  if (force->newton) {
-    comm->reverse_comm();
-    timer->stamp(Timer::COMM);
-  }
-
-  double energy = compute_pe_scalar();
-
-  return energy;
-}
-
-double FixASPCDrude::compute_pe_scalar()
-{
-  double scalar = 0.;
-
-  double one = 0.0;
-  if (force->pair)
-    one += force->pair->eng_vdwl + force->pair->eng_coul;
-
-  if (atom->molecular) {
-    if (force->bond) one += force->bond->energy;
-    if (force->angle) one += force->angle->energy;
-    if (force->dihedral) one += force->dihedral->energy;
-    if (force->improper) one += force->improper->energy;
-  }
-
-  MPI_Allreduce(&one,&scalar,1,MPI_DOUBLE,MPI_SUM,world);
-
-  if (force->kspace) scalar += force->kspace->energy;
-
-  if (force->pair && force->pair->tail_flag) {
-    double volume = domain->xprd * domain->yprd * domain->zprd;
-    scalar += force->pair->etail / volume;
-  }
-
-  return scalar;
 }
 
 double FixASPCDrude::calc_spring_forces_energy()

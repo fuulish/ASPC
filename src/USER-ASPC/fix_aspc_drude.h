@@ -35,18 +35,16 @@ class FixASPCDrude : public FixASPC {
   ~FixASPCDrude();
   void init();
   int modify_param(int narg, char **arg);
-  int check_convergence(double, double, double **);
+  int check_convergence(double **);
   double calc_spring_forces_energy();
   void predict();
   void cpy2hist();
   void setup_pre_force(int vflag);
-  double compute_pe_scalar();
   void r2r_indices_forward();
   void r2r_indices_reverse();
 
  protected:
   void correct();
-  double energy_force_es(int);
   FixDrude * fix_drude;
   tagint *drudeid;
   double ftol;
@@ -55,6 +53,8 @@ class FixASPCDrude : public FixASPC {
 
  private:
   double kd;
+  char *id_ef;
+  class Compute *c_ef;
 };
 
 }

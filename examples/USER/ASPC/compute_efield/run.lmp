@@ -1,0 +1,76 @@
+# created by fftool
+
+units real
+boundary f f f
+
+atom_style full
+bond_style harmonic
+angle_style harmonic
+special_bonds lj/coul 0.0 0.0 0.5
+
+pair_style lj/cut/coul/cut 50 50
+
+read_data data.pol
+# read_restart restart.*.lmp
+
+pair_coeff    1    1   0.195000     3.198656  # Ow Ow
+pair_coeff    2    2   0.000000     0.000000  # Hw Hw
+pair_coeff    3    3   0.000000     0.000000  # L L
+pair_coeff    *   4*   0.000000     0.000000  # D *
+
+# atom groups convenient for thermostats (see package documentation), etc.
+group ATOMS type 1 2 3
+group CORES type 1
+group DRUDES type 4
+
+group INDIP type 1 4
+
+# flag for each atom type: [C]ore, [D]rude, [N]on-polarizable
+fix DRUDE all drude C N N D
+
+#fix FRZ ATOMS setforce 0 0 0
+#minimize 1.0e-4 1.0e-6 100 1000
+#reset_timestep 0
+#unfix FRZ
+
+variable nsteps equal 10000
+variable nprint equal 10
+variable ndump equal 10
+# variable nrestart equal ${nsteps}/10
+
+variable TS equal 100.0
+variable TK equal 100.0
+variable PBAR equal 1.0
+
+neighbor 2.0 bin
+neigh_modify one 100000 page 1000000
+
+timestep 1.0
+
+velocity ATOMS create ${TK} 12345
+velocity ATOMS zero angular
+
+comm_modify vel yes
+compute TATOM ATOMS temp
+compute TEMP all temp/drude
+
+delete_bonds ATOMS multi
+fix TVSTAT ATOMS rigid/nvt/small molecule temp ${TS} ${TK} 100
+
+compute EFI all efield/atom nokspace settings 2 0 50. 50.
+fix ASPC DRUDES aspc/drude 2 ${DAMP} 1000 EFI
+
+dump TRAJ all custom ${ndump} dump.${DAMP}.lammpstrj id mol type element xu yu zu fx fy fz vx vy vz
+dump_modify TRAJ element O H L D
+
+compute MOL all chunk/atom molecule
+compute DIP INDIP dipole/chunk MOL
+fix AVT_I all ave/time ${ndump} 1 ${ndump} c_DIP[*] file dip.${DAMP}.out mode vector
+
+thermo_style custom step cpu etotal ke pe ebond eangle evdwl ecoul elong press vol temp c_TATOM c_TEMP[1] c_TEMP[2]
+thermo ${nprint}
+
+run ${nsteps}
+
+write_restart restart.*.lmp
+write_data data.*.lmp
