@@ -150,7 +150,6 @@ void FixASPCDrude::correct()
     int coreind;
     double df;
 
-    double *q = atom->q;
     double onemdamp = 1. - damp;
 
     // just in case it has been called before
@@ -195,7 +194,8 @@ void FixASPCDrude::correct()
 
             for ( k=0; k<dim; k++) {
 
-              df = q[i] * f[i][k] / kd;
+              //FUX| calculate new dipole moments, assumes that fieldforce option is set for compute efield/atom
+              df = f[i][k] / kd;
               qty[baseind+k] = qty[coreind+k] + df;
             }
 
@@ -352,7 +352,6 @@ int FixASPCDrude::check_convergence(double **f)
   int nlocal = atom->nlocal;
   int i;
   int *mask = atom->mask;
-  double *q = atom->q;
   int noconv = 0;
   int allnoconv = 0;
   int baseind;
@@ -365,9 +364,10 @@ int FixASPCDrude::check_convergence(double **f)
   for ( i=0; i<nlocal; i++ ) {
     if ( mask[i] & groupbit ) {
   
-      frc[0] = q[i] * f[i][0] + hrm[baseind];
-      frc[1] = q[i] * f[i][1] + hrm[baseind+1];
-      frc[2] = q[i] * f[i][2] + hrm[baseind+2];
+      // forces are assumed, i.e., fieldforce option to compute efield/atom is on
+      frc[0] = f[i][0] + hrm[baseind];
+      frc[1] = f[i][1] + hrm[baseind+1];
+      frc[2] = f[i][2] + hrm[baseind+2];
 
       fsqr = frc[0]*frc[0] + frc[1]*frc[1] + frc[2]*frc[2];
 
