@@ -36,7 +36,7 @@ fix 1 DRUDES aspc/drude 2 -1. 1000 :pre
 
 [Description:]
 
-These fixes handle treatment of explicit polarizability using the time-reversible always-stable predictor-corrector algorithm ("Kolafa"_#Kolafa).
+These fixes handle treatment of explicit polarizability using the time-reversible always-stable predictor-corrector algorithm ("Kolafa"_#Kolafa2004).
 In general, the explicit inclusion of polarizbality into a system requires the solution of self-consistent field (SCF) equations to obtain the correct, induced polarization.
 For inducible dipoles this can be expressed as
 
@@ -55,7 +55,7 @@ Here, :math:`\mu` is the set of induced dipoles :math:`\mu`:sub:`1`, :math:`\mu`
 
 Solving these equation explicitly at each time step is very costly, due to their repeated evaluation.
 Several methods exist to approximate the SCF solution.
-The {aspc} family of fixes integrates the equations of motion of the inducible dipoles as described in "Kolafa"_#Kolafa.
+The {aspc} family of fixes integrates the equations of motion of the inducible dipoles as described in "Kolafa"_#Kolafa2004.
 The algorithm first estimates the induced dipoles using a predictor of variable chain length.
 This estimate is then corrected by application of the self-consistent field equation :math:`M` (usually once) on top of the newly predicted induced dipoles.
 
@@ -148,5 +148,5 @@ neval = 1, and no SCF convergence criterion is used.
 
 :line
 
-:link(Kolafa)
+:link(Kolafa2004)
 [(Kolafa)] Kolafa J Comp Chem 25, 335 (2003).
