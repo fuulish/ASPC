@@ -152,9 +152,7 @@ void FixASPCDrude::correct()
 
     double onemdamp = 1. - damp;
 
-    // just in case it has been called before
-    if( !(c_ef->invoked_peratom == update->ntimestep) )
-      c_ef->compute_peratom();
+    c_ef->compute_peratom();
     
     //FUX | AFAICT the array shouldn't grow in one correct() step
     double **f = c_ef->array_atom;
