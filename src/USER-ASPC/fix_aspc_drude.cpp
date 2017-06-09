@@ -76,15 +76,15 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   int iarg = 7;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"scf") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix aspc/drude command");
       scf = 1;
       ftol = force->numeric(FLERR, arg[iarg+1]);
       iarg += 2;
     } else if (strcmp(arg[iarg],"neval") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      if (iarg+2 > narg) error->all(FLERR,"Illegal  aspc/drude command");
       neval = force->inumeric(FLERR,arg[iarg+1]);
       iarg += 2;
-    } else error->all(FLERR,"Illegal fix_modify command");
+    } else error->all(FLERR,"Illegal fix aspc/drude command");
   }
 
   int natom = atom->natoms;
