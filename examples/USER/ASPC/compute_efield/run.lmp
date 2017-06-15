@@ -57,7 +57,7 @@ compute TEMP all temp/drude
 delete_bonds ATOMS multi
 fix TVSTAT ATOMS rigid/nvt/small molecule temp ${TS} ${TK} 100
 
-compute EFI all efield/atom nokspace fieldforce settings 2 0 50. 50.
+compute EFI all efield/atom nokspace settings 2 0 50. 50.
 fix ASPC DRUDES aspc/drude 2 ${DAMP} 1000 EFI
 
 dump TRAJ all custom ${ndump} dump.${DAMP}.lammpstrj id mol type element xu yu zu fx fy fz vx vy vz
