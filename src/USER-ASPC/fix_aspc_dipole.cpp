@@ -91,7 +91,8 @@ FixASPCDipole::FixASPCDipole(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,na
   memory->create(oldf, (natom+1)*dim, "aspc_dipole:oldf");
 
   fpieps = // 0.0030116665;
-           0.0030119505336064496;
+           // 0.0030119505336064496;
+           0.0030114702717118813;
            /* convert 4 * pi * eps_0 (farad/m, coulomb/volt/m, coulomb^2/joule/m) to kcal/mol/e/angstrom (this is the cgs conversion factor) */
 
 }
