@@ -1,0 +1,94 @@
+# created by fftool
+
+units real
+boundary p p p
+
+atom_style full
+bond_style harmonic
+angle_style harmonic
+dihedral_style opls
+special_bonds lj/coul 0.0 0.0 0.5
+
+pair_style lj/cut/coul/long 12.0 12.0
+pair_modify mix geometric tail no
+kspace_style pppm 1.0e-3
+#kspace_modify slab 3.
+
+fix DIEL all property/atom d_diel d_area d_srfx d_srfy d_srfz
+
+#FUX| doing it with an additional read_data did not work that well, I don't know why
+#FUX| maybe check again later
+
+read_data data.lmp fix DIEL NULL Permittivity
+
+# FUX| check if we can get this to run
+# read_data data.extra add merge fix DIEL NULL Permittivity
+# read_restart restart.*.lmp
+
+pair_coeff    1    1   0.820000     3.460000  # CX CX
+pair_coeff    2    2   0.282027     4.585000  # Im Im
+pair_coeff    3    3   0.282027     5.006000  # Bu Bu
+pair_coeff    4    4   0.282027     3.290000  # Me Me
+pair_coeff    5    5   0.185229     5.152000  # PF6 PF6
+
+group FROZEN type 1
+group MOVING type 2 3 4 5
+group LEFT id 1:180
+group RIGT id 181:360
+
+fix FRZ FROZEN setforce 0 0 0
+
+#dump MIN all xyz 1 min.xyz
+
+variable chg atom "q"
+compute QR RIGT reduce sum v_chg
+compute QL LEFT reduce sum v_chg
+
+#thermo_style custom c_QR c_QL
+thermo_style custom step cpu etotal ke pe ebond eangle evdwl ecoul elong press vol temp c_QR c_QL
+
+minimize 1.0e-4 1.0e-6 100 1000
+reset_timestep 0
+
+#undump MIN
+
+variable nsteps equal 10000
+variable nprint equal ${nsteps}/100
+variable ndump equal ${nsteps}/100
+variable nrestart equal ${nsteps}/10
+
+variable TK equal 350.0
+variable PBAR equal 1.0
+
+neighbor 2.0 bin
+
+timestep 1.0
+
+velocity MOVING create ${TK} 12345
+velocity MOVING zero linear
+
+fix SHAKE MOVING shake 0.0001 20 0 b 1 2 a 1
+fix TVSTAT MOVING nvt temp ${TK} ${TK} 100
+
+dump TRAJ all custom ${ndump} dump.lammpstrj id mol type element x y z ix iy iz q
+dump_modify TRAJ element C I B Me P sort 1
+
+#thermo_style one
+thermo ${nprint}
+
+restart ${nrestart} restart.*.lmp
+
+run ${nsteps}
+
+compute EFI all efield/atom settings 2 0 12 12
+
+fix ICCS FROZEN aspc/iccs 1 -1 1 EFI diel area srfx srfy srfz
+fix_modify ICCS damp 1.0 neval 1000 conv 0.001 scf yes
+
+timestep 5.0
+
+#variable nsteps equal 100000
+run ${nsteps}
+
+write_restart restart.*.lmp
+write_data data.*.lmp

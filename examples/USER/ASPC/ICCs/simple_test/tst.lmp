@@ -1,0 +1,88 @@
+# created by fftool
+
+units real
+boundary p p p
+
+atom_style full
+
+fix DIEL all property/atom d_diel d_area d_srfx d_srfy d_srfz
+
+read_data data.lmp fix DIEL NULL Permittivity
+# read_data data.lmp
+# read_restart restart.*.lmp
+
+special_bonds lj/coul 0.0 0.0 0.5
+
+pair_style lj/cut/coul/long 30.0 30.0
+pair_modify mix geometric tail yes
+kspace_style pppm 1.0e-4
+
+#pair_style lj/cut/coul/cut 50.
+
+pair_coeff    1    1      0.000000     0.000000  # CX CX
+pair_coeff    2    2      0.000000     0.000000  # A A
+pair_coeff    3    3      0.000000     0.000000  # C C
+
+group FROZEN type 1
+group LEFT id 1:100
+group RIGT id 101:200
+
+neighbor 2.0 bin
+neigh_modify one 1000000 page 10000000
+
+timestep 1.0
+
+variable TK equal 300.0
+variable PBAR equal 1.0
+
+#fix TPSTAT all npt temp ${TK} ${TK} 100 iso ${PBAR} ${PBAR} 500
+
+fix FRZ all setforce 0 0 0
+fix NVE all nve
+
+variable nsteps equal 10000
+variable nprint equal ${nsteps}/100
+variable ndump equal ${nsteps}/100
+# variable nrestart equal ${nsteps}/10
+
+variable chg atom "q"
+
+compute QR RIGT reduce sum v_chg
+compute QL LEFT reduce sum v_chg
+
+compute EFI all efield/atom settings 2 0 30 30
+#compute EFI all efield/atom nokspace settings 1 0 20
+
+fix ICCS FROZEN aspc/iccs 2 -1 1 EFI diel area srfx srfy srfz
+fix_modify ICCS damp 1.0 neval 1000 conv 1.e-10 scf yes
+
+dump TRAJ all custom 1 dump.lammpstrj id mol type element x y z ix iy iz q
+dump_modify TRAJ element C A C sort 1
+
+thermo_style custom c_QR c_QL
+#thermo_style custom step v_dipxxx v_dipyyy v_dipzzz
+
+run 1
+
+# # FUX| fix: when computes are not done above  the first run command, but only included hereafter, then we get nan's
+# # restart ${nrestart} restart.*.lmp
+# 
+# variable dipx atom "q"
+# variable dipy atom "q"
+# variable dipz atom "q"
+# 
+# compute DX all reduce sum v_dipx
+# compute DY all reduce sum v_dipy
+# compute DZ all reduce sum v_dipz
+# 
+# variable dipxxx equal c_DX
+# variable dipyyy equal c_DY
+# variable dipzzz equal c_DZ
+# 
+# thermo_style custom step v_dipxxx v_dipyyy v_dipzzz
+# #print "final total dipole moment is $dip"
+# 
+# run 1
+# 
+# write_restart restart.*.lmp
+# write_data data.*.lmp

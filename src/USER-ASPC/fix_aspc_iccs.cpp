@@ -59,37 +59,37 @@ enum{MAXITER,MAXEVAL,FTOL};
 FixASPCICCS::FixASPCICCS(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg,arg)
 {
 
-  if (narg < 10) error->all(FLERR,"Illegal fix ASPCICCS command");
+  if (narg < 12) error->all(FLERR,"Illegal fix ASPCICCS command");
 
   //FUX| need input:
   //      - compute/efield
   //      - property names: 1 dielectric 3 components surface normal
 
-  bulk_perm = force->numeric(FLERR,arg[3]);
+  bulk_perm = force->numeric(FLERR,arg[5]);
 
-  int n = strlen(arg[4]) + 1;
+  int n = strlen(arg[6]) + 1;
   id_ef = new char[n];
-  strcpy(id_ef,arg[4]);
-
-  n = strlen(arg[5]) + 1;
-  id_diel = new char[n];
-  strcpy(id_diel, arg[5]);
-
-  n = strlen(arg[6]) + 1;
-  id_area = new char[n];
-  strcpy(id_area, arg[6]);
+  strcpy(id_ef,arg[6]);
 
   n = strlen(arg[7]) + 1;
-  id_srfx = new char[n];
-  strcpy(id_srfx, arg[7]);
+  id_diel = new char[n];
+  strcpy(id_diel, arg[7]);
 
   n = strlen(arg[8]) + 1;
-  id_srfy = new char[n];
-  strcpy(id_srfy, arg[8]);
+  id_area = new char[n];
+  strcpy(id_area, arg[8]);
 
   n = strlen(arg[9]) + 1;
+  id_srfx = new char[n];
+  strcpy(id_srfx, arg[9]);
+
+  n = strlen(arg[10]) + 1;
+  id_srfy = new char[n];
+  strcpy(id_srfy, arg[10]);
+
+  n = strlen(arg[11]) + 1;
   id_srfz = new char[n];
-  strcpy(id_srfz, arg[9]);
+  strcpy(id_srfz, arg[11]);
 
   comm_forward = 1;
 
@@ -104,7 +104,7 @@ FixASPCICCS::FixASPCICCS(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg,a
   qinit = 0;
   conv = EPS;
 
-  int iarg = 10;
+  int iarg = 12;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"scf") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
@@ -162,6 +162,7 @@ void FixASPCICCS::setup_pre_force(int vflag)
 {
     //FU| this needs to be included, and somewhere else than in class construction, or init()
 
+  reset_vectors();
   initialize_charges();
   FixASPC::setup_pre_force(vflag);
 }
@@ -200,27 +201,38 @@ void FixASPCICCS::correct()
   // double **f = c_ef->array_atom;
 
   //FU| apply corrector neval times
+
+  if( !( c_ef->invoked_peratom == update->ntimestep ) )
+      c_ef->compute_peratom();
+
+  reset_vectors();
+
+  int converged = 0;
+
   for ( n=0; n<neval; n++ ) {
 
     // includes charge update and communication
+    // printf("HELLO THERE\n");
     iterate();
 
     if ( scf ) {
-      conv = check_convergence();
+      converged = check_convergence();
 
       //FU| possibly add other convergence criteria
-      if ( conv ) {
+      if ( converged ) {
         if ( ( printconv ) && ( comm->me == 0) ) {
           printf("converged in %i iterations\n", n+1);
         }
         break;
       }
 
+      c_ef->compute_peratom();
+
     }
 
   }
 
-  if ((scf) && !(conv) && (faild >= nfail))
+  if ((scf) && !(converged) && (faild >= nfail))
     error->all(FLERR,"Convergence could not be achieved in maximum number of iterations");
   else {
     faild += 1;
@@ -231,7 +243,6 @@ void FixASPCICCS::correct()
 void FixASPCICCS::iterate()
 {
   backup_charges();
-  c_ef->compute_peratom();
 
   //FUX| this could become more complicated if fixes like ASPC/DRUDE SCF calculations get involved
   calculate_charges_iccs();
@@ -399,6 +410,10 @@ int FixASPCICCS::modify_param(int narg, char **arg)
     } else if (strcmp(arg[iarg],"failures") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       nfail = force->inumeric(FLERR,arg[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"conv") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      conv = force->numeric(FLERR,arg[iarg+1]);
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
