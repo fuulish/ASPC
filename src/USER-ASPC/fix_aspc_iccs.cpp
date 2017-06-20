@@ -317,6 +317,7 @@ void FixASPCICCS::predict()
 {
   FixASPC::predict();
   comm->forward_comm_fix(this);
+  force->kspace->qsum_qsq();
 }
 
 int FixASPCICCS::check_convergence()
