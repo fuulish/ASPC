@@ -82,8 +82,8 @@ run ${nsteps}
 
 compute EFI all efield/atom settings 2 0 12 12
 
-fix ICCS FROZEN aspc/iccs 1 -1 1 EFI diel area srfx srfy srfz
-fix_modify ICCS damp 1.0 neval 1000 conv 0.001 scf yes
+fix ICCS FROZEN aspc/iccs 2 -1 1 EFI diel area srfx srfy srfz
+fix_modify ICCS damp 1.0 neval 1000 conv 0.001 scf yes printconv no
 
 timestep 5.0
 
