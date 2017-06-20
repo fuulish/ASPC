@@ -16,45 +16,52 @@
 
 #ifdef FIX_CLASS
 
-FixStyle(aspc/drude,FixASPCDrude)    // This registers this fix class with LAMMPS.
+FixStyle(aspc/iccs,FixASPCICCS)    // This registers this fix class with LAMMPS.
 
 #else
 
-#ifndef LMP_FIX_ASPC_DRUDE_H
-#define LMP_FIX_ASPC_DRUDE_H
+#ifndef LMP_FIX_ASPC_ICCS_H
+#define LMP_FIX_ASPC_ICCS_H
 
 #include "fix.h"
-#include "fix_drude.h"
 #include "fix_aspc.h"
 
 namespace LAMMPS_NS {
 
-class FixASPCDrude : public FixASPC {
+class FixASPCICCS : public FixASPC {
  public:
-  FixASPCDrude(class LAMMPS *, int, char **);
-  ~FixASPCDrude();
+  FixASPCICCS(class LAMMPS *, int, char **);
+  ~FixASPCICCS();
   void init();
   int modify_param(int narg, char **arg);
-  int check_convergence(double **);
-  double calc_spring_forces_energy();
   void predict();
-  void cpy2hist();
   void setup_pre_force(int vflag);
-  void r2r_indices_forward();
-  void r2r_indices_reverse();
+
+  int pack_forward_comm(int n, int *list, double *buf, int pbc_flag, int *pbc);
+  void unpack_forward_comm(int n, int first, double *buf);
+  void reset_vectors();
 
  protected:
   void correct();
-  FixDrude * fix_drude;
-  tagint *drudeid;
-  double ftol;
+  void iterate();
+  void backup_charges();
+  void calculate_charges_iccs();
+  void initialize_charges();
+  void update_charges();
+  int check_convergence();
+  void calculate_contrast();
   int scf, nfail, faild, neval, printconv;
   double *dx, *hrm;
 
  private:
-  double kd;
-  char *id_ef;
+  double conv;
+  char *id_ef, *id_diel, *id_area, *id_srfx, *id_srfy, *id_srfz;
   class Compute *c_ef;
+  int qinit;
+
+  double bulk_perm;
+  double *p_diel, *p_area, *p_srfx, *p_srfy, *p_srfz;
+  double *contrast, *qprv, *qnxt;
 };
 
 }

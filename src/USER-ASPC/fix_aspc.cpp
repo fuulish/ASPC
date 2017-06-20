@@ -162,6 +162,9 @@ void FixASPC::reset_vectors()
             case COORDS:
                 qty = atom->x[0];
                 break;
+            case CHARGES:
+                qty = atom->q;
+                break;
 /* FU| these could/should be included in later versions
             case DIPOLE:
                 qty = atom->mu;
