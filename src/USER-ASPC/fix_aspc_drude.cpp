@@ -148,6 +148,7 @@ void FixASPCDrude::correct()
     int i, k, n, baseind;
     int nlocal = atom->nlocal;
     int *mask = atom->mask;
+    double *q = atom->q;
 
     int coreind;
     double df;
@@ -182,6 +183,7 @@ void FixASPCDrude::correct()
     baseind = 0;
     int conv = 0;
     int nmaxener = neval - 1;
+    double fct;
 
     //FU| apply corrector neval times
     for ( n=0; n<neval; n++ ) {
@@ -193,10 +195,13 @@ void FixASPCDrude::correct()
             coreind = (int) drudeid[i];
             coreind *= dim;
 
+            fct = q[i] / kd;
+
             for ( k=0; k<dim; k++) {
 
               //FUX| calculate new dipole moments, assumes that fieldforce option is set for compute efield/atom
-              df = f[i][k] / kd;
+              df = fct * f[i][k];
+              // df = f[i][k] / kd * q[i];
               qty[baseind+k] = qty[coreind+k] + df;
             }
 
