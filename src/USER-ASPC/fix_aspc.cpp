@@ -298,7 +298,8 @@ void FixASPC::pre_force(int vflag)
     correct();
 
     //FU| we'll not do re-neighboring, should we? 
-    comm->forward_comm();
+    //FUX| depending on fix this might not be necessary and not enough, see ICC*
+    // comm->forward_comm();
 }
 
 void FixASPC::predict()

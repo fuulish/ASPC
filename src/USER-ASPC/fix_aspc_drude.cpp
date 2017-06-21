@@ -154,7 +154,8 @@ void FixASPCDrude::correct()
 
     double onemdamp = 1. - damp;
 
-    c_ef->compute_peratom();
+    if( !( c_ef->invoked_peratom == update->ntimestep ) )
+      c_ef->compute_peratom();
     
     //FUX | AFAICT the array shouldn't grow in one correct() step
     double **f = c_ef->array_atom;
@@ -208,15 +209,15 @@ void FixASPCDrude::correct()
         if ( (scf) || ( neval > 1) )
           comm->forward_comm();
 
+        //FU| we don't need the energy, convergence only checked on forces
+        calc_spring_forces_energy();
+
         if ( scf ) {
           r2r_indices_reverse();
           c_ef->compute_peratom();
           r2r_indices_forward();
 
-          //FU| we don't need the energy, convergence only checked on forces
-          calc_spring_forces_energy();
-
-          conv = check_convergence(f);
+          conv = check_convergence();
 
           //FU| possibly add other convergence criteria
           if ( conv ) {
@@ -263,6 +264,8 @@ void FixASPCDrude::correct()
     force_clear();
 
     r2r_indices_reverse();
+
+    comm->forward_comm();
 }
 
 void FixASPCDrude::r2r_indices_forward()
@@ -350,7 +353,7 @@ void FixASPCDrude::cpy2hist()
 
 }
 
-int FixASPCDrude::check_convergence(double **f)
+int FixASPCDrude::check_convergence()
 {
   int nlocal = atom->nlocal;
   int i;
@@ -358,6 +361,7 @@ int FixASPCDrude::check_convergence(double **f)
   int noconv = 0;
   int allnoconv = 0;
   int baseind;
+  double **f = c_ef->array_atom;
 
   double fsqr;
   double ftolsqr = ftol*ftol;

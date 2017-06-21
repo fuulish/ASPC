@@ -35,7 +35,7 @@ class FixASPCDrude : public FixASPC {
   ~FixASPCDrude();
   void init();
   int modify_param(int narg, char **arg);
-  int check_convergence(double **);
+  int check_convergence();
   double calc_spring_forces_energy();
   void predict();
   void cpy2hist();

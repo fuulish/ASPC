@@ -41,7 +41,6 @@ class FixASPC : public Fix {
   virtual void setup_pre_force(int);
   int modify_param(int narg, char **arg);
 
-
   int setmask();
 
   double memory_usage();
@@ -52,6 +51,9 @@ class FixASPC : public Fix {
 
   void add_vector(int);
   double *request_vector(int);
+
+  virtual void correct();
+  virtual int check_convergence() {printf("NOT IMPLEMENTED, WILL FAIL\n"); return 0;};
 
  protected:
   int length, nord;             // length of the predictor
@@ -84,7 +86,6 @@ class FixASPC : public Fix {
   void generate_coefficients(int);
   double get_Bj(int n, int k);
   virtual void predict();
-  virtual void correct();
   virtual void cpy2hist();
 
   long long combi(int n,int k);
