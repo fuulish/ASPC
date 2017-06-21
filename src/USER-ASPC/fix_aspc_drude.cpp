@@ -206,8 +206,9 @@ void FixASPCDrude::correct()
         }
 
         //FU| additional communication if multiple corrector applications, otherwise one in pre_force, after correct()
-        if ( (scf) || ( neval > 1) )
-          comm->forward_comm();
+        // if ( (scf) || ( neval > 1) )
+        //FUX| check if we need to perform the transformation here again...
+        comm->forward_comm();
 
         //FU| we don't need the energy, convergence only checked on forces
         calc_spring_forces_energy();
@@ -385,6 +386,8 @@ int FixASPCDrude::check_convergence()
   }
 
   MPI_Allreduce(&noconv,&allnoconv,1,MPI_INT,MPI_SUM,universe->uworld);
+
+  // if( comm->me == 0 ) printf("ASPC noconv is: %i\n", allnoconv);
 
   if ( !(allnoconv) )
     return FTOL;

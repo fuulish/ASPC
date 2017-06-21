@@ -339,6 +339,8 @@ int FixASPCICCS::check_convergence()
   //FUX| avoids havhing to calculate the sum...
   MPI_Allreduce(&isnotconv,&allisnotconv,1,MPI_INT,MPI_SUM,world);
 
+  // if( comm->me == 0 ) printf("ICCS noconv is: %i\n", allisnotconv);
+
   if ( allisnotconv )
     return 0;
   else

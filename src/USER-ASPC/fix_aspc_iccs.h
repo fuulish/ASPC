@@ -41,6 +41,8 @@ class FixASPCICCS : public FixASPC {
   void unpack_forward_comm(int n, int first, double *buf);
   void reset_vectors();
 
+  int check_convergence();
+
  protected:
   void correct();
   void iterate();
@@ -48,7 +50,6 @@ class FixASPCICCS : public FixASPC {
   void calculate_charges_iccs();
   void initialize_charges();
   void update_charges();
-  int check_convergence();
   void calculate_contrast();
   int scf, nfail, faild, neval, printconv;
   double *dx, *hrm;
