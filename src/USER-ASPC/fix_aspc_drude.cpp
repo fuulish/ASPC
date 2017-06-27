@@ -74,6 +74,7 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   faild = 0;
   ftol = 1.e-02;
   printconv = 0;
+  recalcf = 0;
 
   int iarg = 7;
   while (iarg < narg) {
@@ -155,7 +156,7 @@ void FixASPCDrude::correct()
 
     double onemdamp = 1. - damp;
 
-    if( !( c_ef->invoked_peratom == update->ntimestep ) )
+    if ( (recalcf) || !(c_ef->invoked_peratom == update->ntimestep) )
       c_ef->compute_peratom();
     
     //FUX | AFAICT the array shouldn't grow in one correct() step
@@ -368,6 +369,7 @@ int FixASPCDrude::check_convergence()
   int allnoconv = 0;
   int baseind;
   double **f = c_ef->array_atom;
+  double *q = atom->q;
 
   double fsqr;
   double ftolsqr = ftol*ftol;
@@ -378,9 +380,9 @@ int FixASPCDrude::check_convergence()
     if ( mask[i] & groupbit ) {
   
       // forces are assumed, i.e., fieldforce option to compute efield/atom is on
-      frc[0] = f[i][0] + hrm[baseind];
-      frc[1] = f[i][1] + hrm[baseind+1];
-      frc[2] = f[i][2] + hrm[baseind+2];
+      frc[0] = f[i][0]*q[i] + hrm[baseind];
+      frc[1] = f[i][1]*q[i] + hrm[baseind+1];
+      frc[2] = f[i][2]*q[i] + hrm[baseind+2];
 
       fsqr = frc[0]*frc[0] + frc[1]*frc[1] + frc[2]*frc[2];
 
@@ -491,6 +493,11 @@ int FixASPCDrude::modify_param(int narg, char **arg)
     } else if (strcmp(arg[iarg],"failures") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       nfail = force->inumeric(FLERR,arg[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"recalcf") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      if (strcmp(arg[iarg+1], "yes") == 0) recalcf = 1;
+      else if (strcmp(arg[iarg+1], "no") == 0) recalcf = 0;
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }

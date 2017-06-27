@@ -59,10 +59,13 @@ class FixASPCICCS : public FixASPC {
   char *id_ef, *id_diel, *id_area, *id_srfx, *id_srfy, *id_srfz;
   class Compute *c_ef;
   int qinit;
+  void checkme();
 
   double bulk_perm;
   double *p_diel, *p_area, *p_srfx, *p_srfy, *p_srfz;
   double *contrast, *qprv, *qnxt;
+
+  int recalcf;
 };
 
 }

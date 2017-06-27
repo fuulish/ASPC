@@ -103,6 +103,7 @@ FixASPCICCS::FixASPCICCS(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg,a
   printconv = 0;
   qinit = 0;
   conv = EPS;
+  recalcf = 0;
 
   int iarg = 12;
   while (iarg < narg) {
@@ -202,7 +203,7 @@ void FixASPCICCS::correct()
 
   //FU| apply corrector neval times
 
-  if( !( c_ef->invoked_peratom == update->ntimestep ) )
+  if ( (recalcf) || !(c_ef->invoked_peratom == update->ntimestep) )
       c_ef->compute_peratom();
 
   reset_vectors();
@@ -238,6 +239,25 @@ void FixASPCICCS::correct()
     faild += 1;
   }
 
+  // checkme();
+
+}
+
+void FixASPCICCS::checkme()
+{
+  int *mask = atom->mask;
+  double *q = atom->q;
+  int nlocal = atom->nlocal;
+
+  double qtot = 0.;
+  double allqtot = 0.;
+
+  for( int i=0; i<nlocal; ++i )
+    if( mask[i] & groupbit )
+      qtot += q[i];
+
+  MPI_Allreduce(&qtot,&allqtot,1,MPI_DOUBLE,MPI_SUM,world);
+  if( comm->me == 0 ) printf("My total ICC* charge is: %g\n", qtot);
 }
 
 void FixASPCICCS::iterate()
@@ -341,6 +361,7 @@ int FixASPCICCS::check_convergence()
 
   // if( comm->me == 0 ) printf("ICCS noconv is: %i\n", allisnotconv);
 
+  // if( comm->me == 0 ) printf("ALLISNOTCONV: %i\n", allisnotconv);
   if ( allisnotconv )
     return 0;
   else
@@ -417,6 +438,11 @@ int FixASPCICCS::modify_param(int narg, char **arg)
     } else if (strcmp(arg[iarg],"conv") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       conv = force->numeric(FLERR,arg[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"recalcf") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      if (strcmp(arg[iarg+1], "yes") == 0) recalcf = 1;
+      else if (strcmp(arg[iarg+1], "no") == 0) recalcf = 0;
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
