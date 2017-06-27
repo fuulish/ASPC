@@ -358,6 +358,7 @@ int FixASPCDrude::check_convergence(double **f)
   int noconv = 0;
   int allnoconv = 0;
   int baseind;
+  double *q = atom->q;
 
   double fsqr;
   double ftolsqr = ftol*ftol;
@@ -368,9 +369,9 @@ int FixASPCDrude::check_convergence(double **f)
     if ( mask[i] & groupbit ) {
   
       // forces are assumed, i.e., fieldforce option to compute efield/atom is on
-      frc[0] = f[i][0] + hrm[baseind];
-      frc[1] = f[i][1] + hrm[baseind+1];
-      frc[2] = f[i][2] + hrm[baseind+2];
+      frc[0] = f[i][0]*q[i] + hrm[baseind];
+      frc[1] = f[i][1]*q[i] + hrm[baseind+1];
+      frc[2] = f[i][2]*q[i] + hrm[baseind+2];
 
       fsqr = frc[0]*frc[0] + frc[1]*frc[1] + frc[2]*frc[2];
 
