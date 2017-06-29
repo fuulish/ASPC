@@ -55,6 +55,7 @@ class FixASPCDrude : public FixASPC {
   double kd;
   char *id_ef;
   class Compute *c_ef;
+  double epsilon;
 
   int recalcf;
 };

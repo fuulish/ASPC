@@ -75,6 +75,7 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
   ftol = 1.e-02;
   printconv = 0;
   recalcf = 0;
+  epsilon = 1;
 
   int iarg = 7;
   while (iarg < narg) {
@@ -86,6 +87,10 @@ FixASPCDrude::FixASPCDrude(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg
     } else if (strcmp(arg[iarg],"neval") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       neval = force->inumeric(FLERR,arg[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"epsilon") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      epsilon = force->numeric(FLERR,arg[iarg+1]);
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
@@ -196,7 +201,7 @@ void FixASPCDrude::correct()
             coreind = (int) drudeid[i];
             coreind *= dim;
 
-            fct = q[i] / kd;
+            fct = q[i] / kd / epsilon;
 
             for ( k=0; k<dim; k++) {
 
@@ -498,6 +503,10 @@ int FixASPCDrude::modify_param(int narg, char **arg)
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       if (strcmp(arg[iarg+1], "yes") == 0) recalcf = 1;
       else if (strcmp(arg[iarg+1], "no") == 0) recalcf = 0;
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"epsilon") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      epsilon = force->numeric(FLERR,arg[iarg+1]);
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
