@@ -63,9 +63,10 @@ class FixASPCICCS : public FixASPC {
 
   double bulk_perm;
   double *p_diel, *p_area, *p_srfx, *p_srfy, *p_srfz;
-  double *contrast, *qprv, *qnxt;
+  double *contrast, *qprd, *qprv, *qnxt;
 
   int recalcf;
+  int reinitialize;
 };
 
 }

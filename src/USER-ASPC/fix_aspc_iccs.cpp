@@ -104,6 +104,7 @@ FixASPCICCS::FixASPCICCS(LAMMPS *lmp, int narg, char **arg) : FixASPC(lmp,narg,a
   qinit = 0;
   conv = EPS;
   recalcf = 0;
+  reinitialize = 1;
 
   int iarg = 12;
   while (iarg < narg) {
@@ -133,6 +134,7 @@ FixASPCICCS::~FixASPCICCS()
   delete [] id_srfz;
 
   memory->destroy(qprv);
+  memory->destroy(qprd);
   memory->destroy(qnxt);
 }
 
@@ -150,6 +152,7 @@ void FixASPCICCS::init()
   int natoms = atom->natoms;
 
   qprv = memory->create(qprv,natoms+1,"iccs:qprv");
+  qprd = memory->create(qprd,natoms+1,"iccs:qprd");
   qnxt = memory->create(qnxt,natoms+1,"iccs:qnxt");
 
   add_vector(dim);
@@ -210,6 +213,22 @@ void FixASPCICCS::correct()
 
   int converged = 0;
 
+  int halfeval = neval / 2;
+
+  double dampiter = damp / 11.;
+  double dampbak = damp;
+
+  int tentheval = neval / 10;
+
+  int *mask = atom->mask;
+  int nlocal = atom->nlocal;
+  double *q = atom->q;
+
+  for( int i=0; i<nlocal; ++i )
+    if( mask[i] & groupbit )
+      qprd[i] = q[i];
+
+RESTARTDAMP:
   for ( n=0; n<neval; n++ ) {
 
     // includes charge update and communication
@@ -218,6 +237,10 @@ void FixASPCICCS::correct()
 
     if ( scf ) {
       converged = check_convergence();
+
+      if( converged == 2 )
+        if( comm->me == 0 )
+          printf("Some charges are suspiciously close to zero\n");
 
       //FU| possibly add other convergence criteria
       if ( converged ) {
@@ -231,7 +254,34 @@ void FixASPCICCS::correct()
 
     }
 
+    // if ( !(converged) && (n == halfeval) && (reinitialize) ) {
+    //   if ( comm->me == 0 )
+    //     printf("Re-initialization charges on ICC* particles\n");
+
+    //   initialize_charges();
+    // }
+
+    // printf("%i %i\n", n % 10, tentheval);
+    if( !(converged) && (n == neval-1) && (reinitialize) )
+    {
+      //FUX| TODO need to check that damping isn't too low, otherwise there will be no measurable change in charges
+      damp -= dampiter;
+      printf("Resetting damping factor to %g\n", damp);
+      // for( int i=0; i<nlocal; ++i )
+      //   if( mask[i] & groupbit )
+      //     q[i] = qprd[i];
+
+      // comm->forward_comm_fix(this);
+      // force->kspace->qsum_qsq();
+
+      // this would break time-reversibility?
+      initialize_charges();
+      goto RESTARTDAMP;
+    }
+
   }
+
+  damp = dampbak;
 
   if ((scf) && !(converged) && (faild >= nfail))
     error->all(FLERR,"Convergence could not be achieved in maximum number of iterations");
@@ -312,7 +362,8 @@ void FixASPCICCS::initialize_charges()
       q[i] = 0.01 * ( (float) rand() / RAND_MAX - 0.5);
 
   comm->forward_comm_fix(this);
-  force->kspace->qsum_qsq();
+  if( kspace_compute_flag )
+    force->kspace->qsum_qsq();
       
   qinit = 1;
 }
@@ -330,14 +381,16 @@ void FixASPCICCS::update_charges()
       q[i] = onemdamp * qprv[i] + damp * qnxt[i];
 
   comm->forward_comm_fix(this);
-  force->kspace->qsum_qsq();
+  if( kspace_compute_flag )
+    force->kspace->qsum_qsq();
 }
 
 void FixASPCICCS::predict()
 {
   FixASPC::predict();
   comm->forward_comm_fix(this);
-  force->kspace->qsum_qsq();
+  if( kspace_compute_flag )
+    force->kspace->qsum_qsq();
 }
 
 int FixASPCICCS::check_convergence()
@@ -350,22 +403,34 @@ int FixASPCICCS::check_convergence()
   int isnotconv = 0;
   int allisnotconv = 0;
 
+  int isdangerous = 0;
+  int allisdangerous = 0;
+
   for( i=0; i<nlocal; ++i )
-    if( mask[i] & groupbit )
+    if( mask[i] & groupbit ) {
       if( fabs( ( q[i] - qprv[i] ) / qprv[i] ) > conv )
         isnotconv += 1;
+
+      if( fabs( q[i] ) < EPS_ENERGY )
+        isdangerous += 1;
+    }
 
   //FUX| substitute MPI_SUM by MPI_MAX? and check for largest charge
   //FUX| avoids havhing to calculate the sum...
   MPI_Allreduce(&isnotconv,&allisnotconv,1,MPI_INT,MPI_SUM,world);
+  MPI_Allreduce(&isdangerous,&allisdangerous,1,MPI_INT,MPI_SUM,world);
 
   // if( comm->me == 0 ) printf("ICCS noconv is: %i\n", allisnotconv);
 
   // if( comm->me == 0 ) printf("ALLISNOTCONV: %i\n", allisnotconv);
   if ( allisnotconv )
     return 0;
-  else
-    return 1;
+  else {
+    if ( allisdangerous )
+      return 2;
+    else
+      return 1;
+  }
 }
 
 void FixASPCICCS::calculate_contrast()
@@ -386,7 +451,6 @@ void FixASPCICCS::calculate_contrast()
         contrast[i] *= -1.;
       else
         contrast[i] *= (bulk_perm - p_diel[i]) / (bulk_perm + p_diel[i]);
-
     }
 
 }
@@ -443,6 +507,11 @@ int FixASPCICCS::modify_param(int narg, char **arg)
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
       if (strcmp(arg[iarg+1], "yes") == 0) recalcf = 1;
       else if (strcmp(arg[iarg+1], "no") == 0) recalcf = 0;
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"reinitialize") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix_modify command");
+      if (strcmp(arg[iarg+1], "yes") == 0) reinitialize = 1;
+      else if (strcmp(arg[iarg+1], "no") == 0) reinitialize = 0;
       iarg += 2;
     } else error->all(FLERR,"Illegal fix_modify command");
   }
