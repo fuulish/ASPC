@@ -262,7 +262,7 @@ RESTARTDAMP:
     // }
 
     // printf("%i %i\n", n % 10, tentheval);
-    if( !(converged) && (n == neval-1) && (reinitialize) )
+    if( (scf) && !(converged) && (n == neval-1) && (reinitialize) )
     {
       //FUX| TODO need to check that damping isn't too low, otherwise there will be no measurable change in charges
       damp -= dampiter;
